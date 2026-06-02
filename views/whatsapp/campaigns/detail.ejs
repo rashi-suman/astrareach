@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<%- include('../../layout/_head', { title: cam.name }) %>
+<body class="bg-brand-dark text-gray-100 font-sans antialiased">
+<%- include('../../layout/_sidebar', { page: 'whatsapp', user }) %>
+<div id="main-wrapper" class="flex flex-col min-h-screen">
+<%- include('../../layout/_header', { breadcrumbs, user }) %>
+<main class="flex-1 p-6 overflow-y-auto">
+
+<!-- Top bar -->
+<div class="flex items-start justify-between mb-6">
+  <div>
+    <div class="flex items-center gap-3 mb-1">
+      <h1 class="text-2xl font-bold text-white"><%= cam.name %></h1>
+      <% const sc = {draft:'text-brand-textMuted bg-brand-border/40',active:'text-green-400 bg-green-400/10',paused:'text-yellow-400 bg-yellow-400/10',completed:'text-blue-400 bg-blue-400/10',stopped:'text-red-400 bg-red-400/10'}[cam.status]||''; %>
+      <span class="px-2.5 py-0.5 rounded-full text-xs font-semibold <%= sc %>"><%= cam.status %></span>
+      <span class="text-xs text-brand-textMuted flex items-center gap-1"><i class="fa-brands fa-whatsapp text-green-400"></i><%= cam.phone_number || '' %></span>
+    </div>
+    <p class="text-brand-textMuted text-sm"><%= cam.template_name %> · <%= cam.language %> · <%= cam.category %></p>
+  </div>
+  <div class="flex gap-2">
+    <% if (cam.status === 'draft' || cam.status === 'paused') { %>
+    <button onclick="campaignAction('start')" class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-500"><i class="fa-solid fa-play mr-1.5"></i>Start</button>
+    <% } %>
+    <% if (cam.status === 'active') { %>
+    <button onclick="campaignAction('pause')" class="px-4 py-2 bg-yellow-500/10 border border-yellow-500/30 text-yellow-400 rounded-lg text-sm hover:bg-yellow-500/20"><i class="fa-solid fa-pause mr-1.5"></i>Pause</button>
+    <% } %>
+    <% if (['active','paused'].includes(cam.status)) { %>
+    <button onclick="campaignAction('stop')" class="px-4 py-2 bg-red-500/10 border border-red-500/20 text-red-400 rounded-lg text-sm hover:bg-red-500/20"><i class="fa-solid fa-stop mr-1.5"></i>Stop</button>
+    <% } %>
+  </div>
+</div>
+
+<!-- Progress bar -->
+<% const total_c = cam.total_contacts || 0; const sent_c = cam.messages_sent || 0; const pct = total_c ? Math.round(sent_c/total_c*100) : 0; %>
+<div class="bg-brand-card border border-brand-border rounded-xl p-5 mb-6">
+  <div class="flex justify-between text-sm mb-2">
+    <span class="text-brand-textMuted">Overall Progress</span>
+    <span class="font-semibold text-white"><%= sent_c.toLocaleString() %> / <%= total_c.toLocaleString() %> sent (<%= pct %>%)</span>
+  </div>
+  <div class="h-2.5 bg-brand-border rounded-full overflow-hidden">
+    <div id="progress-bar" class="h-full bg-brand-primary rounded-full transition-all" style="width:<%= pct %>%"></div>
+  </div>
+</div>
+
+<!-- Stats -->
+<div class="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-3 mb-6">
+<% const statDefs = [['sent','Sent','fa-check','text-blue-400'],['delivered','Delivered','fa-check-double','text-green-400'],['read','Read','fa-eye','text-purple-400'],['replied','Replied','fa-reply','text-brand-primary'],['opted_out','Opted Out','fa-ban','text-red-400'],['failed','Failed','fa-xmark','text-red-400'],['invalid_number','Invalid','fa-phone-slash','text-orange-400']];
+statDefs.forEach(([key, label, icon, color]) => { const n = stats[key]||0; %>
+<div class="bg-brand-card border border-brand-border rounded-xl p-4 text-center">
+  <i class="fa-solid <%= icon %> <%= color %> text-sm mb-2"></i>
+  <div id="stat-<%= key %>" class="text-xl font-bold text-white"><%= n.toLocaleString() %></div>
+  <div class="text-[10px] text-brand-textMuted mt-0.5"><%= label %></div>
+  <% if (sent_c > 0 && ['delivered','read','replied'].includes(key)) { %>
+  <div class="text-[10px] text-brand-textMuted"><%= Math.round(n/sent_c*100) %>%</div>
+  <% } %>
+</div>
+<% }) %>
+</div>
+
+<div class="grid grid-cols-1 xl:grid-cols-3 gap-5">
+  <!-- Contacts table -->
+  <div class="xl:col-span-2 bg-brand-card border border-brand-border rounded-xl overflow-hidden">
+    <div class="p-5 border-b border-brand-border flex items-center justify-between">
+      <h3 class="font-semibold">Contacts</h3>
+      <span class="text-xs text-brand-textMuted"><%= contacts.length %> shown</span>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-brand-sidebar/30 text-[10px] uppercase tracking-wider text-brand-textMuted">
+          <tr>
+            <th class="px-4 py-2.5 text-left">Contact</th>
+            <th class="px-3 py-2.5 text-left">Phone</th>
+            <th class="px-3 py-2.5 text-center">Status</th>
+            <th class="px-3 py-2.5 text-left">Sent</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-brand-border/40">
+        <% contacts.forEach(c => {
+          const wa_sc = {pending:'text-brand-textMuted bg-brand-border/40',queued:'text-blue-400 bg-blue-400/10',sent:'text-sky-400 bg-sky-400/10',delivered:'text-green-400 bg-green-400/10',read:'text-purple-400 bg-purple-400/10',replied:'text-brand-primary bg-brand-primary/10',failed:'text-red-400 bg-red-400/10',opted_out:'text-red-400 bg-red-400/10',invalid_number:'text-orange-400 bg-orange-400/10'}[c.status]||'text-brand-textMuted';
+        %>
+        <tr class="hover:bg-brand-sidebar/20">
+          <td class="px-4 py-2.5">
+            <p class="font-medium text-white text-sm"><%= c.first_name %> <%= c.last_name %></p>
+            <p class="text-[10px] text-brand-textMuted"><%= c.email %></p>
+          </td>
+          <td class="px-3 py-2.5 text-xs text-brand-textMuted font-mono"><%= c.phone_number %></td>
+          <td class="px-3 py-2.5 text-center"><span class="px-1.5 py-0.5 rounded text-[10px] font-semibold <%= wa_sc %>"><%= c.status %></span></td>
+          <td class="px-3 py-2.5 text-[10px] text-brand-textMuted"><%= c.sent_at ? new Date(c.sent_at).toLocaleString('en-IN') : '—' %></td>
+        </tr>
+        <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Live activity -->
+  <div class="bg-brand-card border border-brand-border rounded-xl">
+    <div class="p-5 border-b border-brand-border flex items-center justify-between">
+      <h3 class="font-semibold">Live Activity</h3>
+      <span class="flex items-center gap-1.5 text-xs text-green-400"><span class="w-1.5 h-1.5 bg-green-400 rounded-full animate-pulse"></span>LIVE</span>
+    </div>
+    <div id="activity-feed" class="p-4 space-y-2 max-h-96 overflow-y-auto">
+      <% activity.forEach(a => {
+        const icon = {sent:'fa-check text-sky-400',delivered:'fa-check-double text-green-400',read:'fa-eye text-purple-400',replied:'fa-reply text-brand-primary',failed:'fa-xmark text-red-400',opted_out:'fa-ban text-red-400'}[a.event_type]||'fa-circle text-brand-textMuted';
+      %>
+      <div class="flex items-start gap-2.5 text-xs">
+        <i class="fa-solid <%= icon %> mt-0.5 w-3.5 shrink-0"></i>
+        <div>
+          <span class="text-white font-medium"><%= a.first_name %> <%= a.last_name %></span>
+          <span class="text-brand-textMuted"> — <%= a.event_type.replace('_',' ') %></span>
+          <div class="text-[10px] text-brand-textMuted/60"><%= new Date(a.created_at).toLocaleTimeString('en-IN') %></div>
+        </div>
+      </div>
+      <% }) %>
+    </div>
+  </div>
+</div>
+
+<!-- Template preview -->
+<div class="mt-5 bg-brand-card border border-brand-border rounded-xl p-5">
+  <h3 class="font-semibold mb-4">Template Being Sent</h3>
+  <div class="bg-[#0b141a] rounded-xl p-5">
+    <div class="flex justify-end">
+      <div class="max-w-xs bg-[#005c4b] rounded-2xl rounded-tr-sm px-3 py-2 text-sm text-white leading-relaxed">
+        <% if (cam.header_type === 'TEXT' && cam.header_content) { %><p class="font-bold text-xs mb-1"><%= cam.header_content %></p><% } %>
+        <p><%= (cam.body_text||'').replace(/\n/g,'<br>') %></p>
+        <div class="text-right text-[10px] text-gray-300 mt-1">✓✓</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</main>
+</div>
+<div id="toast-container"></div>
+<script>
+async function campaignAction(action) {
+  const labels = { start: 'Start', pause: 'Pause', stop: 'Stop', resume: 'Resume' };
+  if (['stop'].includes(action) && !confirm(`${labels[action]} this campaign?`)) return;
+  const res = await fetch(`/whatsapp/campaigns/<%= cam.id %>/${action}`, { method:'POST', headers:{'Content-Type':'application/json'} });
+  const j = await res.json();
+  if (j.ok || j.queued !== undefined) {
+    toastSuccess(j.queued !== undefined ? `Campaign started, ${j.queued} messages queued` : `Campaign ${action}ed`);
+    setTimeout(() => location.reload(), 1500);
+  } else toastError(j.error || 'Action failed');
+}
+
+// Poll stats every 10 seconds if active
+<% if (cam.status === 'active') { %>
+setInterval(async () => {
+  try {
+    const r = await fetch('/whatsapp/campaigns/<%= cam.id %>/stats');
+    const { stats: s } = await r.json();
+    if (!s) return;
+    ['sent','delivered','read','replied','failed','opted_out','invalid_number'].forEach(k => {
+      const el = document.getElementById(`stat-${k}`);
+      if (el && s[k] !== undefined) el.textContent = (s[k]||0).toLocaleString();
+    });
+  } catch {}
+}, 10000);
+<% } %>
+</script>
+</body>
+</html>

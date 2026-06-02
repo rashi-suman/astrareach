@@ -1,0 +1,752 @@
+<!DOCTYPE html>
+<html lang="en">
+<%- include('../layout/_head', { title }) %>
+<body class="bg-brand-dark text-gray-100 font-sans antialiased">
+
+<%- include('../layout/_sidebar', { page, user }) %>
+
+<div id="main-wrapper" class="flex flex-col h-screen overflow-hidden">
+    <%- include('../layout/_header', { breadcrumbs, user }) %>
+
+    <div class="flex-1 flex flex-col overflow-hidden min-h-0">
+        <!-- Page Header -->
+        <div class="h-16 border-b border-brand-border flex items-center justify-between px-8 bg-brand-sidebar/50 backdrop-blur-md shrink-0">
+            <div class="flex items-center gap-4">
+                <h1 class="text-lg font-semibold">Contacts</h1>
+                <span class="px-2.5 py-0.5 bg-btnSecondary text-brand-textMuted text-xs font-medium rounded-full border border-btnBorder"><%= total.toLocaleString() %> total</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <% if (user && (user.role === 'admin' || user.role === 'superadmin')) { %>
+                <a href="/contacts/export?<%= new URLSearchParams(query).toString() %>" class="px-4 py-2 bg-btnSecondary border border-btnBorder rounded-md text-sm font-medium hover:bg-brand-border/50 transition-all">
+                    <i class="fa-solid fa-download mr-1.5"></i>Export CSV
+                </a>
+                <% } %>
+                <a href="/contacts/import" class="px-4 py-2 bg-btnSecondary border border-btnBorder rounded-md text-sm font-medium hover:bg-brand-border/50 transition-all">
+                    <i class="fa-solid fa-file-import mr-1.5"></i>Import
+                </a>
+                <a href="/contacts/new" class="px-4 py-2 bg-brand-primary rounded-md text-sm font-medium hover:bg-blue-500 transition-all">
+                    <i class="fa-solid fa-plus mr-1.5"></i>Add Contact
+                </a>
+            </div>
+        </div>
+
+        <!-- Filters + Table -->
+        <section class="flex-1 px-6 pt-3 pb-3 overflow-hidden flex flex-col gap-0 min-h-0">
+
+            <!-- Filter Bar -->
+            <%
+              const selIndustry = (query.industry || '').split(',').filter(Boolean);
+              const selCountry  = (query.country  || '').split(',').filter(Boolean);
+              const selStatus   = (query.status   || '').split(',').filter(Boolean);
+              const selSource   = (query.source   || '').split(',').filter(Boolean);
+              const _statusOpts = [
+                { v:'active', l:'Active' }, { v:'unsubscribed', l:'Unsubscribed' },
+                { v:'bounced', l:'Bounced' }, { v:'invalid', l:'Invalid' },
+              ];
+              const _filters = [
+                { name:'industry', placeholder:'Industry', opts: industries.map(v=>({v,l:v})),           sel: selIndustry },
+                { name:'country',  placeholder:'Country',  opts: countries.map(v=>({v,l:v})),            sel: selCountry  },
+                { name:'status',   placeholder:'Status',   opts: _statusOpts,                            sel: selStatus   },
+                { name:'source',   placeholder:'Source',   opts: sources.map(v=>({v,l:v.replace(/\.[^/.]+$/,'')})), sel: selSource },
+              ];
+            %>
+            <form id="filter-form" method="GET" action="/contacts" class="mb-3 shrink-0">
+                <!-- Single row: search + filters (wraps on narrow screens) -->
+                <div class="flex flex-wrap items-center gap-2">
+                    <!-- Search -->
+                    <div class="relative shrink-0" style="min-width:220px;max-width:300px;flex:1 1 220px;">
+                        <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-brand-textMuted text-xs"></i>
+                        <input type="text" name="search" value="<%= query.search || '' %>" placeholder="Search by name, email, company..."
+                            class="w-full bg-btnSecondary border border-btnBorder rounded-md py-1.5 pl-9 pr-3 text-sm focus:outline-none focus:border-brand-primary transition-all"
+                            id="contact-search">
+                    </div>
+
+                    <!-- Divider -->
+                    <span class="text-brand-border shrink-0 hidden sm:block" style="width:1px;height:20px;background:rgba(255,255,255,0.12);"></span>
+
+                    <!-- Multi-select filter dropdowns -->
+                    <% _filters.forEach(function(f) {
+                      const selSet    = new Set(f.sel);
+                      const selLabels = f.opts.filter(function(o){ return selSet.has(o.v); }).map(function(o){ return o.l; });
+                      const hasVal    = selLabels.length > 0;
+                      const btnLabel  = hasVal
+                        ? (selLabels.length === 1 ? selLabels[0] : selLabels[0] + ' +' + (selLabels.length - 1))
+                        : f.placeholder;
+                    %>
+                    <div class="ms-wrap relative shrink-0" data-fname="<%= f.name %>">
+                        <input type="hidden" name="<%= f.name %>" value="<%= f.sel.join(',') %>">
+                        <button type="button" class="ms-btn flex items-center gap-1.5 rounded-md py-1.5 px-3 text-sm whitespace-nowrap focus:outline-none transition-all" style="min-width:95px;background:<%= hasVal ? 'rgba(98,60,234,0.15)' : '#1e2035' %>;border:1.5px solid <%= hasVal ? '#623cea' : 'rgba(255,255,255,0.1)' %>;">
+                            <span class="ms-label truncate" style="color:<%= hasVal ? '#a78bfa' : '#9ca3af' %>;max-width:110px;"><%= btnLabel %></span>
+                            <% if (hasVal) { %><span class="ms-badge" style="font-size:10px;min-width:16px;height:16px;padding:0 4px;background:#623cea;color:white;border-radius:8px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;flex-shrink:0;"><%= selLabels.length %></span><% } %>
+                            <svg class="ms-caret" style="width:11px;height:11px;flex-shrink:0;transition:transform 0.15s;color:<%= hasVal ? '#a78bfa' : '#6b7280' %>;" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 9l-7 7-7-7"/></svg>
+                        </button>
+                        <div class="ms-drop" style="display:none;position:absolute;left:0;top:calc(100% + 6px);z-index:500;width:250px;background:#181b2e;border:1px solid rgba(255,255,255,0.12);border-radius:12px;box-shadow:0 24px 48px rgba(0,0,0,0.6);">
+                            <div style="padding:8px;border-bottom:1px solid rgba(255,255,255,0.08);">
+                                <div style="position:relative;">
+                                    <i class="fa-solid fa-magnifying-glass" style="position:absolute;left:9px;top:50%;transform:translateY(-50%);font-size:10px;color:#6b7280;pointer-events:none;"></i>
+                                    <input type="text" placeholder="Search options..." class="ms-search" style="width:100%;background:#0f1122;border:1px solid rgba(255,255,255,0.1);border-radius:8px;padding:6px 10px 6px 28px;font-size:12px;color:#e5e7eb;outline:none;box-sizing:border-box;">
+                                </div>
+                            </div>
+                            <ul class="ms-list" style="max-height:200px;overflow-y:auto;padding:4px 4px;margin:0;list-style:none;">
+                                <% if (f.opts.length === 0) { %>
+                                <li style="padding:12px;text-align:center;font-size:12px;color:#6b7280;list-style:none;">No options available</li>
+                                <% } %>
+                                <% f.opts.forEach(function(o) {
+                                   const isChk = selSet.has(o.v);
+                                %>
+                                <li class="ms-opt" data-val="<%= o.v %>" style="list-style:none;cursor:pointer;border-radius:6px;margin:1px 0;background:<%= isChk ? 'rgba(98,60,234,0.12)' : 'transparent' %>;">
+                                    <label style="display:flex;flex-direction:row;align-items:center;gap:9px;padding:7px 10px;cursor:pointer;width:100%;box-sizing:border-box;">
+                                        <span class="ms-chk" style="display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;min-width:15px;border-radius:4px;border:1.5px solid <%= isChk ? '#623cea' : 'rgba(255,255,255,0.25)' %>;background:<%= isChk ? '#623cea' : 'transparent' %>;transition:all 0.1s;flex-shrink:0;">
+                                            <% if (isChk) { %><svg width="9" height="9" fill="none" viewBox="0 0 12 12"><path stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" d="M2 6l3 3 5-5"/></svg><% } %>
+                                        </span>
+                                        <span class="ms-opt-label" style="font-size:13px;color:<%= isChk ? '#e5e7eb' : '#9ca3af' %>;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:<%= isChk ? '600' : '400' %>;min-width:0;flex:1;"><%= o.l %></span>
+                                    </label>
+                                </li>
+                                <% }); %>
+                            </ul>
+                            <div style="padding:8px;border-top:1px solid rgba(255,255,255,0.08);display:flex;gap:8px;">
+                                <button type="button" class="ms-clear-btn" style="font-size:12px;color:#9ca3af;background:#0f1122;border:1px solid rgba(255,255,255,0.1);cursor:pointer;padding:6px 12px;border-radius:7px;flex-shrink:0;">Clear</button>
+                                <button type="button" class="ms-apply-btn" style="flex:1;background:#623cea;color:white;border:none;border-radius:7px;padding:7px;font-size:12px;font-weight:700;cursor:pointer;">Apply Filter</button>
+                            </div>
+                        </div>
+                    </div>
+                    <% }); %>
+
+                    <!-- Clear all filters link -->
+                    <% if (Object.values(query).some(function(v){return !!v;})) { %>
+                    <a href="/contacts" class="shrink-0 flex items-center gap-1 text-xs text-brand-textMuted hover:text-white transition-colors px-2 py-1.5 rounded hover:bg-brand-border/40">
+                        <i class="fa-solid fa-xmark text-xs"></i> Clear all
+                    </a>
+                    <% } %>
+
+                    <!-- Active filter tags (same row, wrap after filters) -->
+                    <% _filters.forEach(function(f) {
+                       if (f.sel.length > 0) {
+                         f.sel.forEach(function(v) {
+                           const opt = f.opts.find(function(o){ return o.v === v; });
+                           const lbl = opt ? opt.l : v;
+                    %>
+                    <span class="inline-flex items-center gap-1 px-2.5 py-1 text-xs rounded-full shrink-0" style="background:rgba(98,60,234,0.15);border:1px solid rgba(98,60,234,0.35);color:#a78bfa;">
+                        <%= lbl %>
+                        <button type="button" class="ms-tag-remove" data-fname="<%= f.name %>" data-fval="<%= v %>" style="margin-left:1px;color:#a78bfa;background:none;border:none;cursor:pointer;font-size:10px;line-height:1;padding:0 2px;" title="Remove filter">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </span>
+                    <% }); } }); %>
+                </div>
+            </form>
+
+            <!-- Bulk Action Bar -->
+            <div id="bulk-actions" class="hidden items-center justify-between bg-brand-primary/10 border border-brand-primary/30 rounded-lg p-2.5 px-4 mb-2 shrink-0">
+                <div class="flex items-center gap-4">
+                    <span class="text-sm font-medium text-brand-primary"><span id="selected-count">0</span> contacts selected</span>
+                    <div class="h-4 w-[1px] bg-brand-primary/20 mx-2"></div>
+                    <div class="flex gap-2">
+                        <button onclick="bulkTag()" class="text-xs bg-btnSecondary border border-btnBorder px-3 py-1.5 rounded hover:bg-brand-dark transition-colors">Add Tag</button>
+                        <% if (user && (user.role === 'admin' || user.role === 'superadmin')) { %>
+                        <button onclick="bulkExport()" class="text-xs bg-btnSecondary border border-btnBorder px-3 py-1.5 rounded hover:bg-brand-dark transition-colors">Export</button>
+                        <% } %>
+                        <button onclick="openBulkEnrichModal()" class="text-xs bg-purple-600/20 border border-purple-500/40 text-purple-400 hover:bg-purple-600/30 px-3 py-1.5 rounded transition-colors flex items-center gap-1.5">
+                            <i class="fa-solid fa-wand-magic-sparkles text-[10px]"></i>AI Enrich
+                        </button>
+                    </div>
+                </div>
+                <% if (user && user.role !== 'editor' && user.role !== 'lead_manager' && user.role !== 'campaign_manager') { %>
+                <button onclick="bulkDelete()" class="text-xs text-red-500 font-medium hover:underline">Delete</button>
+                <% } %>
+            </div>
+
+            <!-- Data Table: thead sticky, only tbody scrolls, pagination fixed at bottom -->
+            <div class="flex-1 border border-brand-border rounded-lg overflow-hidden flex flex-col bg-brand-card min-h-0">
+                <!-- Single scrollable container — thead is sticky inside it -->
+                <div class="flex-1 overflow-y-auto overflow-x-auto min-h-0">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="sticky top-0 z-10 bg-brand-sidebar border-b border-brand-border">
+                            <tr>
+                                <th class="w-[40px] px-4 py-3"><input type="checkbox" id="selectAll" class="rounded border-btnBorder bg-transparent cursor-pointer"></th>
+                                <th class="min-w-[240px] px-4 py-3 text-[11px] uppercase font-semibold text-brand-textMuted tracking-wider">
+                                    <a href="/contacts?<%= new URLSearchParams({...query, sort: 'first_name', order: query.sort === 'first_name' && query.order === 'asc' ? 'desc' : 'asc'}).toString() %>" class="flex items-center gap-1 hover:text-white">
+                                        Contact <% if (query.sort === 'first_name') { %><i class="fa-solid fa-<%= query.order === 'asc' ? 'arrow-up' : 'arrow-down' %> text-[9px]"></i><% } %>
+                                    </a>
+                                </th>
+                                <th class="min-w-[140px] px-4 py-3 text-[11px] uppercase font-semibold text-brand-textMuted tracking-wider">
+                                    <a href="/contacts?<%= new URLSearchParams({...query, sort: 'company', order: query.sort === 'company' && query.order === 'asc' ? 'desc' : 'asc'}).toString() %>" class="flex items-center gap-1 hover:text-white">
+                                        Company <% if (query.sort === 'company') { %><i class="fa-solid fa-<%= query.order === 'asc' ? 'arrow-up' : 'arrow-down' %> text-[9px]"></i><% } %>
+                                    </a>
+                                </th>
+                                <th class="min-w-[120px] px-4 py-3 text-[11px] uppercase font-semibold text-brand-textMuted tracking-wider">
+                                    <a href="/contacts?<%= new URLSearchParams({...query, sort: 'industry', order: query.sort === 'industry' && query.order === 'asc' ? 'desc' : 'asc'}).toString() %>" class="flex items-center gap-1 hover:text-white">
+                                        Industry <% if (query.sort === 'industry') { %><i class="fa-solid fa-<%= query.order === 'asc' ? 'arrow-up' : 'arrow-down' %> text-[9px]"></i><% } %>
+                                    </a>
+                                </th>
+                                <th class="min-w-[90px] px-4 py-3 text-[11px] uppercase font-semibold text-brand-textMuted tracking-wider">Status</th>
+                                <th class="min-w-[160px] px-4 py-3 text-[11px] uppercase font-semibold text-brand-textMuted tracking-wider">Tags</th>
+                                <th class="min-w-[90px] px-4 py-3 text-[11px] uppercase font-semibold text-brand-textMuted tracking-wider">
+                                    <a href="/contacts?<%= new URLSearchParams({...query, sort: 'created_at', order: query.sort === 'created_at' && query.order === 'asc' ? 'desc' : 'asc'}).toString() %>" class="flex items-center gap-1 hover:text-white">
+                                        Added <% if (!query.sort || query.sort === 'created_at') { %><i class="fa-solid fa-<%= query.order === 'asc' ? 'arrow-up' : 'arrow-down' %> text-[9px]"></i><% } %>
+                                    </a>
+                                </th>
+                                <th class="w-[50px] px-4 py-3"></th>
+                            </tr>
+                            <!-- "Select all pages" banner row -->
+                            <tr id="select-all-pages-row" class="hidden">
+                                <td colspan="8" class="px-4 py-2 bg-brand-primary/10 border-b border-brand-primary/20 text-center text-xs">
+                                    <span id="select-pages-msg" class="text-brand-textMuted">
+                                        All <strong class="text-white" id="page-count-label"><%= contacts.length %></strong> contacts on this page are selected.
+                                        <button id="select-all-pages-btn" type="button" class="ml-1.5 text-brand-primary font-semibold hover:underline">
+                                            Select all <strong><%= total.toLocaleString() %></strong> contacts
+                                        </button>
+                                    </span>
+                                    <span id="select-all-active-msg" class="hidden text-brand-primary font-medium">
+                                        All <strong><%= total.toLocaleString() %></strong> contacts are selected.
+                                        <button id="clear-all-pages-btn" type="button" class="ml-1.5 text-white/70 hover:text-white hover:underline">Clear selection</button>
+                                    </span>
+                                </td>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-brand-border/50">
+                            <% if (!contacts || contacts.length === 0) { %>
+                            <tr>
+                                <td colspan="8" class="px-4 py-16 text-center">
+                                    <div class="flex flex-col items-center gap-3">
+                                        <div class="w-16 h-16 rounded-full bg-brand-border/30 flex items-center justify-center">
+                                            <i class="fa-regular fa-address-book text-3xl text-brand-textMuted"></i>
+                                        </div>
+                                        <p class="text-base font-medium text-brand-textMuted">No contacts found</p>
+                                        <p class="text-sm text-brand-textMuted/60">Import or add contacts to get started</p>
+                                        <a href="/contacts/import" class="mt-2 px-4 py-2 bg-brand-primary rounded-md text-sm font-medium">Import Contacts</a>
+                                    </div>
+                                </td>
+                            </tr>
+                            <% } else { %>
+                            <% contacts.forEach(contact => {
+                                const name = [contact.first_name, contact.last_name].filter(Boolean).join(' ') || '—';
+                                const initials = name !== '—' ? name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase() : contact.email.slice(0,2).toUpperCase();
+                                const tags = contact.tags || [];
+                                const shownTags = tags.slice(0, 2);
+                                const extraTags = tags.length > 2 ? tags.length - 2 : 0;
+                                const statusColors = {
+                                    active: 'bg-green-500/10 text-green-500 border-green-500/20',
+                                    unsubscribed: 'bg-gray-500/10 text-gray-400 border-gray-500/20',
+                                    bounced: 'bg-red-500/10 text-red-500 border-red-500/20',
+                                    invalid: 'bg-orange-500/10 text-orange-400 border-orange-500/20',
+                                };
+                                const statusCls = statusColors[contact.status] || 'bg-gray-500/10 text-gray-400';
+                                const dateAdded = new Date(contact.created_at);
+                                const diff = Date.now() - dateAdded.getTime();
+                                const days = Math.floor(diff / 86400000);
+                                const dateStr = days === 0 ? 'Today' : days === 1 ? 'Yesterday' : days < 30 ? days + 'd ago' : dateAdded.toLocaleDateString('en-US', {month:'short', day:'numeric'});
+                            %>
+                            <tr class="h-[52px] hover:bg-brand-sidebar/30 transition-colors cursor-pointer" data-id="<%= contact.id %>">
+                                <td class="px-4"><input type="checkbox" class="contact-checkbox rounded border-btnBorder bg-transparent cursor-pointer" value="<%= contact.id %>"></td>
+                                <td class="px-4">
+                                    <a href="/contacts/<%= contact.id %>" class="flex items-center gap-3">
+                                        <div class="w-8 h-8 rounded-full bg-brand-primary/20 flex items-center justify-center text-xs font-bold text-brand-primary shrink-0">
+                                            <%= initials %>
+                                        </div>
+                                        <div class="flex flex-col">
+                                            <span class="text-sm font-medium hover:text-brand-primary"><%= name %></span>
+                                            <span class="text-xs text-brand-textMuted"><%= contact.email %></span>
+                                        </div>
+                                    </a>
+                                </td>
+                                <td class="px-4 text-sm text-brand-textMuted"><%= contact.company || '—' %></td>
+                                <td class="px-4 text-sm text-brand-textMuted"><%= contact.industry || '—' %></td>
+                                <td class="px-4">
+                                    <span class="px-2 py-0.5 rounded-full text-[10px] font-bold border <%= statusCls %> uppercase"><%= contact.status %></span>
+                                </td>
+                                <td class="px-4">
+                                    <div class="flex gap-1.5 flex-wrap">
+                                        <% shownTags.forEach(tag => { %>
+                                        <span class="px-2 py-0.5 rounded bg-brand-primary/10 text-brand-primary text-[10px]"><%= tag %></span>
+                                        <% }) %>
+                                        <% if (extraTags > 0) { %><span class="px-2 py-0.5 rounded bg-brand-border text-brand-textMuted text-[10px]">+<%= extraTags %></span><% } %>
+                                    </div>
+                                </td>
+                                <td class="px-4 text-xs text-brand-textMuted"><%= dateStr %></td>
+                                <td class="px-4 text-center relative">
+                                    <button class="row-menu-btn text-brand-textMuted hover:text-white p-1 rounded" data-id="<%= contact.id %>">
+                                        <i class="fa-solid fa-ellipsis"></i>
+                                    </button>
+                                    <div class="row-menu hidden absolute right-6 top-8 w-36 bg-brand-card border border-brand-border rounded-lg shadow-xl z-20 py-1" data-id="<%= contact.id %>">
+                                        <a href="/contacts/<%= contact.id %>" class="flex items-center gap-2 px-3 py-2 text-xs hover:bg-brand-border/30 transition-colors"><i class="fa-solid fa-eye w-3"></i> View</a>
+                                        <a href="/contacts/<%= contact.id %>/edit" class="flex items-center gap-2 px-3 py-2 text-xs hover:bg-brand-border/30 transition-colors"><i class="fa-solid fa-pen w-3"></i> Edit</a>
+                                        <% if (user && user.role !== 'editor' && user.role !== 'lead_manager' && user.role !== 'campaign_manager') { %>
+                                        <button onclick="deleteContact('<%= contact.id %>')" class="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-400 hover:bg-brand-border/30 transition-colors"><i class="fa-solid fa-trash w-3"></i> Delete</button>
+                                        <% } %>
+                                    </div>
+                                </td>
+                            </tr>
+                            <% }) %>
+                            <% } %>
+                        </tbody>
+                    </table>
+                </div><!-- end scroll container -->
+
+                <!-- Pagination -->
+                <div class="border-t border-brand-border px-6 py-3 flex items-center justify-between bg-brand-sidebar/20 shrink-0">
+                    <p class="text-xs text-brand-textMuted">
+                        Showing <span class="font-medium text-white"><%= ((pageNo-1)*limit+1).toLocaleString() %>–<%= Math.min(pageNo*limit, total).toLocaleString() %></span> of <span class="font-medium text-white"><%= total.toLocaleString() %></span> contacts
+                    </p>
+                    <div class="flex items-center gap-1">
+                        <% if (pageNo > 1) { %>
+                        <a href="/contacts?<%= new URLSearchParams({...query, page: pageNo-1}).toString() %>" class="px-3 py-1.5 text-xs bg-btnSecondary border border-btnBorder rounded hover:bg-brand-border/50 transition-colors">
+                            <i class="fa-solid fa-chevron-left"></i>
+                        </a>
+                        <% } %>
+                        <%
+                        const totalPages = Math.ceil(total / limit);
+                        const startP = Math.max(1, pageNo - 2);
+                        const endP = Math.min(totalPages, pageNo + 2);
+                        for (let p = startP; p <= endP; p++) {
+                        %>
+                        <a href="/contacts?<%= new URLSearchParams({...query, page: p}).toString() %>"
+                           class="px-3 py-1.5 text-xs border rounded transition-colors <%= p === pageNo ? 'bg-brand-primary border-brand-primary text-white' : 'bg-btnSecondary border-btnBorder hover:bg-brand-border/50' %>">
+                            <%= p %>
+                        </a>
+                        <% } %>
+                        <% if (pageNo < totalPages) { %>
+                        <a href="/contacts?<%= new URLSearchParams({...query, page: pageNo+1}).toString() %>" class="px-3 py-1.5 text-xs bg-btnSecondary border border-btnBorder rounded hover:bg-brand-border/50 transition-colors">
+                            <i class="fa-solid fa-chevron-right"></i>
+                        </a>
+                        <% } %>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+(function() {
+    // Sidebar toggle
+    const btn = document.getElementById('sidebar-toggle');
+    const sidebar = document.getElementById('sidebar');
+    const wrapper = document.getElementById('main-wrapper');
+    if (btn) btn.addEventListener('click', () => {
+        sidebar.classList.toggle('collapsed');
+        wrapper.style.marginLeft = sidebar.classList.contains('collapsed') ? '60px' : '240px';
+    });
+
+    // Select all (page + cross-page)
+    const selectAll      = document.getElementById('selectAll');
+    const checkboxes     = document.querySelectorAll('.contact-checkbox');
+    const bulkBar        = document.getElementById('bulk-actions');
+    const countEl        = document.getElementById('selected-count');
+    const bannerRow      = document.getElementById('select-all-pages-row');
+    const pageMsg        = document.getElementById('select-pages-msg');
+    const allActiveMsg   = document.getElementById('select-all-active-msg');
+    const selectAllBtn   = document.getElementById('select-all-pages-btn');
+    const clearAllBtn    = document.getElementById('clear-all-pages-btn');
+    const TOTAL          = <%= total %>;
+    const PAGE_COUNT     = <%= contacts.length %>;
+    window._selectAllPages = false;
+
+    function updateBulkBar() {
+        const checked = document.querySelectorAll('.contact-checkbox:checked');
+        const n = window._selectAllPages ? TOTAL : checked.length;
+        if (checked.length > 0 || window._selectAllPages) {
+            bulkBar.style.display = 'flex';
+            countEl.textContent = n.toLocaleString();
+        } else {
+            bulkBar.style.display = 'none';
+            hideBanner();
+        }
+        // Show "select all pages" banner only when whole page is checked and more exist
+        if (selectAll && selectAll.checked && TOTAL > PAGE_COUNT && !window._selectAllPages) {
+            showBanner(false);
+        } else if (!selectAll || !selectAll.checked) {
+            hideBanner();
+        }
+    }
+
+    function showBanner(allSelected) {
+        bannerRow.classList.remove('hidden');
+        if (allSelected) {
+            pageMsg.classList.add('hidden');
+            allActiveMsg.classList.remove('hidden');
+        } else {
+            pageMsg.classList.remove('hidden');
+            allActiveMsg.classList.add('hidden');
+        }
+    }
+    function hideBanner() {
+        bannerRow.classList.add('hidden');
+        window._selectAllPages = false;
+    }
+
+    if (selectAllBtn) selectAllBtn.addEventListener('click', () => {
+        window._selectAllPages = true;
+        showBanner(true);
+        countEl.textContent = TOTAL.toLocaleString();
+    });
+    if (clearAllBtn) clearAllBtn.addEventListener('click', () => {
+        window._selectAllPages = false;
+        checkboxes.forEach(cb => cb.checked = false);
+        if (selectAll) selectAll.checked = false;
+        bulkBar.style.display = 'none';
+        hideBanner();
+    });
+
+    if (selectAll) selectAll.addEventListener('change', () => {
+        checkboxes.forEach(cb => cb.checked = selectAll.checked);
+        if (!selectAll.checked) { window._selectAllPages = false; hideBanner(); }
+        updateBulkBar();
+    });
+    checkboxes.forEach(cb => cb.addEventListener('change', () => {
+        window._selectAllPages = false;
+        const allChecked = [...checkboxes].every(c => c.checked);
+        if (selectAll) selectAll.checked = allChecked;
+        updateBulkBar();
+    }));
+
+    // Row menus
+    document.querySelectorAll('.row-menu-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const id = btn.dataset.id;
+            document.querySelectorAll('.row-menu').forEach(m => { if (m.dataset.id !== id) m.classList.add('hidden'); });
+            document.querySelector(`.row-menu[data-id="${id}"]`).classList.toggle('hidden');
+        });
+    });
+    document.addEventListener('click', () => document.querySelectorAll('.row-menu').forEach(m => m.classList.add('hidden')));
+
+    // Search debounce
+    const searchInput = document.getElementById('contact-search');
+    if (searchInput) {
+        let timer;
+        searchInput.addEventListener('input', () => {
+            clearTimeout(timer);
+            timer = setTimeout(() => document.getElementById('filter-form').submit(), 400);
+        });
+    }
+})();
+
+// ── Multi-select filter dropdowns ────────────────────────────────────────────
+(function () {
+  function closeAll() {
+    document.querySelectorAll('.ms-drop').forEach(function(d){ d.style.display='none'; });
+    document.querySelectorAll('.ms-caret').forEach(function(c){ c.style.transform=''; });
+  }
+
+  document.querySelectorAll('.ms-wrap').forEach(function(wrap) {
+    var fname    = wrap.dataset.fname;
+    var btn      = wrap.querySelector('.ms-btn');
+    var drop     = wrap.querySelector('.ms-drop');
+    var searchEl = wrap.querySelector('.ms-search');
+    var list     = wrap.querySelector('.ms-list');
+    var hidden   = wrap.querySelector('input[type="hidden"]');
+    var applyBtn = wrap.querySelector('.ms-apply-btn');
+    var clearBtn = wrap.querySelector('.ms-clear-btn');
+    var caret    = wrap.querySelector('.ms-caret');
+
+    // Init selection set from server-rendered hidden value
+    var selected = new Set(
+      (hidden.value || '').split(',').filter(Boolean)
+    );
+
+    // ── open/close ──
+    btn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var isOpen = drop.style.display !== 'none';
+      closeAll();
+      if (!isOpen) {
+        drop.style.display = 'block';
+        caret.style.transform = 'rotate(180deg)';
+        searchEl.value = '';
+        filterList('');
+        setTimeout(function(){ searchEl.focus(); }, 50);
+      }
+    });
+
+    // ── search in dropdown ──
+    searchEl.addEventListener('input', function(){ filterList(searchEl.value); });
+    searchEl.addEventListener('keydown', function(e){ if(e.key==='Escape') closeAll(); });
+    drop.addEventListener('click', function(e){ e.stopPropagation(); });
+
+    // ── toggle option ──
+    list.addEventListener('click', function(e) {
+      var li = e.target.closest('.ms-opt');
+      if (!li) return;
+      var val = li.dataset.val;
+      var chk = li.querySelector('.ms-chk');
+      var lbl = li.querySelector('.ms-opt-label');
+      if (selected.has(val)) {
+        selected.delete(val);
+        chk.style.background = 'transparent';
+        chk.style.borderColor = 'rgba(255,255,255,0.25)';
+        chk.innerHTML = '';
+        li.style.background = 'transparent';
+        if (lbl) { lbl.style.fontWeight = '400'; lbl.style.color = '#9ca3af'; }
+      } else {
+        selected.add(val);
+        chk.style.background = '#623cea';
+        chk.style.borderColor = '#623cea';
+        chk.innerHTML = '<svg width="9" height="9" fill="none" viewBox="0 0 12 12"><path stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" d="M2 6l3 3 5-5"/></svg>';
+        li.style.background = 'rgba(98,60,234,0.12)';
+        if (lbl) { lbl.style.fontWeight = '600'; lbl.style.color = '#e5e7eb'; }
+      }
+      syncBtn();
+    });
+
+    // ── apply ──
+    applyBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      hidden.value = Array.from(selected).join(',');
+      closeAll();
+      document.getElementById('filter-form').submit();
+    });
+
+    // ── clear (just this filter, then apply) ──
+    clearBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      selected.clear();
+      list.querySelectorAll('.ms-opt').forEach(function(li) {
+        var chk = li.querySelector('.ms-chk');
+        var lbl = li.querySelector('.ms-opt-label');
+        chk.style.background = 'transparent';
+        chk.style.borderColor = 'rgba(255,255,255,0.25)';
+        chk.innerHTML = '';
+        li.style.background = 'transparent';
+        if (lbl) { lbl.style.fontWeight = '400'; lbl.style.color = '#9ca3af'; }
+      });
+      hidden.value = '';
+      syncBtn();
+      closeAll();
+      document.getElementById('filter-form').submit();
+    });
+
+    function filterList(q) {
+      var lower = q.toLowerCase();
+      list.querySelectorAll('.ms-opt').forEach(function(li) {
+        var txt = li.querySelector('.ms-opt-label').textContent.toLowerCase();
+        li.style.display = txt.includes(lower) ? '' : 'none';
+      });
+    }
+
+    function syncBtn() {
+      var btnLabel = wrap.querySelector('.ms-label');
+      var badge    = wrap.querySelector('.ms-badge');
+      var arr      = Array.from(selected);
+      var placeholder = fname.charAt(0).toUpperCase() + fname.slice(1);
+      if (arr.length === 0) {
+        btnLabel.textContent = placeholder;
+        btnLabel.style.color = '#9ca3af';
+        btn.style.background = '#1e2035';
+        btn.style.borderColor = 'rgba(255,255,255,0.1)';
+        caret.style.color = '#6b7280';
+        if (badge) badge.remove();
+      } else {
+        var labels = arr.map(function(v) {
+          var li = list.querySelector('.ms-opt[data-val="' + CSS.escape(v) + '"]');
+          return li ? li.querySelector('.ms-opt-label').textContent.trim() : v;
+        });
+        btnLabel.textContent = labels.length === 1 ? labels[0] : labels[0] + ' +' + (labels.length - 1);
+        btnLabel.style.color = '#a78bfa';
+        btn.style.background = 'rgba(98,60,234,0.15)';
+        btn.style.borderColor = '#623cea';
+        caret.style.color = '#a78bfa';
+        if (!badge) {
+          var b = document.createElement('span');
+          b.className = 'ms-badge';
+          b.style.cssText = 'min-width:16px;height:16px;padding:0 4px;background:#623cea;color:white;border-radius:8px;font-size:10px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;';
+          btn.insertBefore(b, caret);
+          badge = b;
+        }
+        badge.textContent = arr.length;
+      }
+      hidden.value = arr.join(',');
+    }
+  });
+
+  document.addEventListener('click', closeAll);
+
+  // ── Active filter tag "x" removal ──
+  document.querySelectorAll('.ms-tag-remove').forEach(function(xBtn) {
+    xBtn.addEventListener('click', function(e) {
+      e.stopPropagation();
+      var fname = xBtn.dataset.fname;
+      var fval  = xBtn.dataset.fval;
+      var hiddenEl = document.querySelector('.ms-wrap[data-fname="' + fname + '"] input[type="hidden"]');
+      if (!hiddenEl) return;
+      var existing = hiddenEl.value.split(',').filter(Boolean);
+      hiddenEl.value = existing.filter(function(v){ return v !== fval; }).join(',');
+      document.getElementById('filter-form').submit();
+    });
+  });
+
+  // ── Hover highlight ──
+  document.querySelectorAll('.ms-list').forEach(function(ul) {
+    ul.addEventListener('mouseover', function(e) {
+      var li = e.target.closest('.ms-opt');
+      if (li) {
+        var chk = li.querySelector('.ms-chk');
+        var isSelected = chk && chk.style.background === 'rgb(98, 60, 234)';
+        if (!isSelected) li.style.background = 'rgba(255,255,255,0.04)';
+      }
+    });
+    ul.addEventListener('mouseout', function(e) {
+      var li = e.target.closest('.ms-opt');
+      if (li) {
+        var chk = li.querySelector('.ms-chk');
+        var isSelected = chk && chk.style.background === 'rgb(98, 60, 234)';
+        if (!isSelected) li.style.background = 'transparent';
+      }
+    });
+  });
+})();
+
+// Current active filters (for selectAll cross-page operations)
+const _activeFilters = <%- JSON.stringify(query) %>;
+
+function deleteContact(id) {
+    if (!confirm('Delete this contact?')) return;
+    fetch('/contacts/' + id, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: '_method=DELETE',
+    })
+    .then(r => r.ok ? location.reload() : r.json().then(d => window.toastError(d.error || 'Delete failed')))
+    .catch(() => window.toastError('Network error — could not delete contact'));
+}
+
+function bulkDelete() {
+    if (window._selectAllPages) {
+        if (!confirm('Delete ALL <%= total.toLocaleString() %> contacts matching current filters? This cannot be undone.')) return;
+        fetch('/contacts/bulk-delete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ selectAll: true, filters: _activeFilters }),
+        })
+        .then(r => r.json())
+        .then(d => d.ok ? location.reload() : window.toastError(d.error || 'Bulk delete failed'))
+        .catch(() => window.toastError('Network error'));
+        return;
+    }
+    const ids = [...document.querySelectorAll('.contact-checkbox:checked')].map(cb => cb.value);
+    if (!ids.length) { window.toastWarning('Select at least one contact'); return; }
+    if (!confirm('Delete ' + ids.length + ' contact(s)?')) return;
+    fetch('/contacts/bulk-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids }),
+    })
+    .then(r => r.json())
+    .then(d => d.ok ? location.reload() : window.toastError(d.error || 'Bulk delete failed'))
+    .catch(() => window.toastError('Network error'));
+}
+
+function bulkExport() {
+    // Export always uses active filters (already covers all pages)
+    const params = new URLSearchParams(_activeFilters);
+    window.location.href = '/contacts/export?' + params.toString();
+}
+
+function bulkTag() {
+    const isAll = window._selectAllPages;
+    const ids   = isAll ? [] : [...document.querySelectorAll('.contact-checkbox:checked')].map(cb => cb.value);
+    if (!isAll && !ids.length) { window.toastWarning('Select at least one contact'); return; }
+    const tag = prompt('Enter tag name:');
+    if (!tag || !tag.trim()) return;
+    const count = isAll ? <%= total %> : ids.length;
+    const body  = isAll
+        ? { selectAll: true, filters: _activeFilters, tag: tag.trim() }
+        : { ids, tag: tag.trim() };
+    fetch('/contacts/bulk-tag', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+    })
+    .then(r => r.json())
+    .then(d => d.ok ? (window.toastSuccess(`Tag "${tag.trim()}" applied to ${count.toLocaleString()} contact(s)`), setTimeout(()=>location.reload(),1200)) : window.toastError(d.error || 'Tag failed'))
+    .catch(() => window.toastError('Network error'));
+}
+
+function openBulkEnrichModal() {
+    const ids = getSelectedIds();
+    const count = window._selectAllPages ? <%= total %> : ids.length;
+    if (!count) { window.toastError('Select at least one contact'); return; }
+    const estMin = Math.ceil(count * 45 / 60);
+    document.getElementById('enrich-modal-count').textContent   = count.toLocaleString();
+    document.getElementById('enrich-modal-eta').textContent     = estMin > 60 ? `~${Math.round(estMin/60)} hours` : `~${estMin} minutes`;
+    document.getElementById('enrich-modal').style.display = 'flex';
+    document.body.style.overflow = 'hidden';
+}
+
+function closeBulkEnrichModal() {
+    document.getElementById('enrich-modal').style.display = 'none';
+    document.body.style.overflow = '';
+}
+
+function submitBulkEnrich() {
+    const force = document.getElementById('enrich-force').checked;
+    const ids   = getSelectedIds();
+    const payload = window._selectAllPages
+        ? { contact_ids: [], select_all: true, filters: window._activeFilters || {}, force }
+        : { contact_ids: ids, force };
+
+    closeBulkEnrichModal();
+    const toastMsg = `Enrichment started for ${ids.length > 0 ? ids.length : 'all filtered'} contacts`;
+    window.toastSuccess && toastSuccess(toastMsg + ' — check progress in the contact details');
+
+    fetch('/enrichment/bulk-enrich', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.error) { window.toastError && toastError(d.error); return; }
+        window.toastSuccess && toastSuccess(`Enriching ${d.total} contacts — Job ID: ${d.jobId}`);
+        if (d.jobId) {
+            setTimeout(() => { window.open('/enrichment/job/' + d.jobId, '_blank'); }, 1000);
+        }
+    })
+    .catch(() => window.toastError && toastError('Enrichment request failed'));
+}
+</script>
+
+<!-- Bulk Enrich Modal -->
+<div id="enrich-modal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.7);align-items:center;justify-content:center;padding:16px;">
+    <div style="background:#1a2035;border:1px solid #2a3347;border-radius:16px;width:100%;max-width:460px;padding:24px;box-shadow:0 25px 60px rgba(0,0,0,0.5);">
+        <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;">
+            <div style="width:40px;height:40px;border-radius:10px;background:rgba(124,58,237,0.2);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                <i class="fa-solid fa-wand-magic-sparkles" style="color:#a78bfa;font-size:15px;"></i>
+            </div>
+            <div>
+                <h3 style="font-size:15px;font-weight:700;color:#fff;margin:0;">AI Enrich Contacts</h3>
+                <p style="font-size:12px;color:#8b9ab0;margin:0;">Research public data for each contact using Claude</p>
+            </div>
+        </div>
+        <div style="background:#0f1623;border-radius:10px;padding:14px;margin-bottom:16px;display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+            <div>
+                <p style="font-size:10px;color:#8b9ab0;text-transform:uppercase;letter-spacing:.05em;margin:0 0 3px;">Contacts to enrich</p>
+                <p style="font-size:20px;font-weight:800;color:#a78bfa;margin:0;" id="enrich-modal-count">0</p>
+            </div>
+            <div>
+                <p style="font-size:10px;color:#8b9ab0;text-transform:uppercase;letter-spacing:.05em;margin:0 0 3px;">Estimated time</p>
+                <p style="font-size:20px;font-weight:800;color:#fff;margin:0;" id="enrich-modal-eta">—</p>
+            </div>
+        </div>
+        <div style="background:#0f1623;border-radius:8px;padding:12px;margin-bottom:16px;font-size:12px;color:#8b9ab0;line-height:1.6;">
+            <i class="fa-solid fa-circle-info" style="color:#623CEA;margin-right:6px;"></i>
+            Only <strong style="color:#fff;">new fields</strong> will be added. Existing contact data is <strong style="color:#fff;">never overwritten</strong>.
+            Every stored field has a source URL and confidence score.
+        </div>
+        <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:20px;font-size:13px;color:#c4c9d4;">
+            <input type="checkbox" id="enrich-force" style="width:16px;height:16px;accent-color:#623CEA;">
+            Force re-enrich already enriched contacts
+        </label>
+        <div style="display:flex;gap:10px;">
+            <button onclick="closeBulkEnrichModal()" style="flex:1;padding:10px;background:#2a3347;border:1px solid #3a4a5c;border-radius:8px;color:#c4c9d4;font-size:13px;cursor:pointer;">Cancel</button>
+            <button onclick="submitBulkEnrich()" style="flex:1;padding:10px;background:#623CEA;border:none;border-radius:8px;color:#fff;font-size:13px;font-weight:700;cursor:pointer;">
+                <i class="fa-solid fa-wand-magic-sparkles" style="margin-right:6px;"></i>Start Enrichment
+            </button>
+        </div>
+    </div>
+</div>
+</body>
+</html>
+</html>

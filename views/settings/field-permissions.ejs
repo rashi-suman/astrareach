@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="en">
+<%- include('../layout/_head', { title: 'Field Permissions' }) %>
+<body class="bg-brand-dark text-gray-100 font-sans antialiased">
+<%- include('../layout/_sidebar', { page: 'settings', user }) %>
+<div id="main-wrapper" class="flex flex-col min-h-screen">
+<%- include('../layout/_header', { breadcrumbs: ['Settings', 'Field Permissions'], user }) %>
+<main class="flex-1 p-6 overflow-y-auto">
+  <% const flash_success = locals.messages?.success?.[0] || ''; %>
+  <% const flash_error   = locals.messages?.error?.[0]   || ''; %>
+  <% if (flash_success) { %><div class="mb-4 p-3 bg-green-500/10 border border-green-500/30 rounded-lg text-sm text-green-400"><i class="fa-solid fa-check mr-2"></i><%- flash_success %></div><% } %>
+  <% if (flash_error)   { %><div class="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-sm text-red-400"><i class="fa-solid fa-triangle-exclamation mr-2"></i><%- flash_error %></div><% } %>
+
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold">Field Permissions</h1>
+      <p class="text-brand-textMuted text-sm mt-1">Control which contact fields each role can view or edit</p>
+    </div>
+    <a href="/settings" class="text-sm text-brand-textMuted hover:text-white">← Settings</a>
+  </div>
+
+  <% for (const role of ['lead_manager','campaign_manager']) { %>
+  <div class="bg-brand-card border border-brand-border rounded-xl mb-6 overflow-hidden">
+    <div class="px-5 py-4 border-b border-brand-border flex items-center justify-between">
+      <h2 class="font-semibold capitalize"><%= role.replace('_',' ') %></h2>
+      <span class="text-xs text-brand-textMuted">
+        Visible: <%= Object.entries(perms[role] || {}).filter(([,v])=>v.can_view).map(([k])=>k).join(', ') || 'Default' %>
+      </span>
+    </div>
+    <form method="POST" action="/settings/field-permissions" class="p-5">
+      <input type="hidden" name="role" value="<%= role %>">
+      <input type="hidden" name="table_name" value="contacts">
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+        <% for (const col of columns) { %>
+        <%
+          const rp = (perms[role] || {})[col];
+          const canView = rp ? rp.can_view : true;
+          const canEdit = rp ? rp.can_edit : false;
+        %>
+        <div class="bg-brand-sidebar rounded-lg p-3 border border-brand-border">
+          <div class="font-mono text-xs text-brand-primary mb-2"><%= col %></div>
+          <input type="hidden" name="fields[][name]" value="<%= col %>">
+          <label class="flex items-center gap-2 text-xs mb-1 cursor-pointer">
+            <input type="checkbox" name="fields[][can_view]" value="true" <%= canView ? 'checked' : '' %> class="rounded">
+            Can View
+          </label>
+          <label class="flex items-center gap-2 text-xs cursor-pointer">
+            <input type="checkbox" name="fields[][can_edit]" value="true" <%= canEdit ? 'checked' : '' %> class="rounded">
+            Can Edit
+          </label>
+        </div>
+        <% } %>
+      </div>
+      <div class="mt-4 flex items-center gap-3">
+        <button type="submit" class="px-4 py-2 bg-brand-primary hover:opacity-90 rounded-lg text-sm font-medium transition">
+          Save Permissions for <%= role.replace('_',' ') %>
+        </button>
+        <button type="button" onclick="checkAll(this.closest('form'))" class="px-4 py-2 bg-brand-sidebar border border-brand-border hover:border-brand-primary rounded-lg text-sm transition">
+          Check All View
+        </button>
+      </div>
+    </form>
+  </div>
+  <% } %>
+
+  <div class="bg-brand-card border border-brand-border rounded-xl p-5 text-sm text-brand-textMuted">
+    <p><strong class="text-white">Note:</strong> <code class="text-brand-primary">superadmin</code> and <code class="text-brand-primary">admin</code> always have access to all fields and cannot be restricted here.</p>
+  </div>
+</main>
+</div>
+
+<script>
+function checkAll(form) {
+  form.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = true; });
+}
+</script>
+</body></html>

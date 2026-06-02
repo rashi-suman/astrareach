@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<%- include('../../layout/_head', { title: 'WA Campaigns' }) %>
+<body class="bg-brand-dark text-gray-100 font-sans antialiased">
+<%- include('../../layout/_sidebar', { page: 'whatsapp', user }) %>
+<div id="main-wrapper" class="flex flex-col" style="height:100vh;overflow:hidden;">
+<%- include('../../layout/_header', { breadcrumbs, user }) %>
+
+<!-- Fixed header -->
+<div class="shrink-0 px-6 py-4 border-b border-brand-border bg-brand-dark">
+  <div class="flex items-center justify-between mb-3">
+    <h1 class="text-xl font-bold text-white">WA Campaigns <span class="text-brand-textMuted text-sm font-normal ml-2"><%= total %> total</span></h1>
+    <a href="/whatsapp/campaigns/new/step/1" class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-500 flex items-center gap-2">
+      <i class="fa-brands fa-whatsapp"></i>New Campaign
+    </a>
+  </div>
+  <!-- Status summary strip -->
+  <div class="flex items-center gap-2 flex-wrap mb-3">
+    <% const statuses = ['draft','active','paused','completed','stopped'];
+       const sc2 = {draft:'text-brand-textMuted bg-brand-border/40',active:'text-green-400 bg-green-400/10',paused:'text-yellow-400 bg-yellow-400/10',completed:'text-blue-400 bg-blue-400/10',stopped:'text-red-400 bg-red-400/10'};
+       statuses.forEach(s => { if (summary[s]) { %>
+    <span class="px-2.5 py-1 rounded-full text-xs font-medium <%= sc2[s] %>"><%= summary[s] %> <%= s %></span>
+    <% } }) %>
+  </div>
+  <div class="flex items-center gap-2">
+    <form method="GET" class="flex items-center gap-2 flex-1">
+      <input name="q" value="<%= query %>" placeholder="Search campaigns…" class="bg-brand-card border border-brand-border rounded-lg px-3 py-1.5 text-sm w-56 focus:outline-none focus:border-brand-primary">
+      <select name="status" onchange="this.form.submit()" class="bg-brand-card border border-brand-border rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:border-brand-primary">
+        <option value="">All Status</option>
+        <% statuses.forEach(s => { %><option value="<%= s %>" <%= filterStatus===s?'selected':'' %>><%= s.charAt(0).toUpperCase()+s.slice(1) %></option><% }) %>
+      </select>
+      <button type="submit" class="px-3 py-1.5 bg-brand-sidebar border border-brand-border rounded-lg text-sm hover:border-brand-primary/50"><i class="fa-solid fa-magnifying-glass text-brand-textMuted"></i></button>
+    </form>
+  </div>
+</div>
+
+<!-- Scrollable table -->
+<div class="flex-1 overflow-y-auto">
+<% if (campaigns.length === 0) { %>
+<div class="flex flex-col items-center justify-center h-64 text-center">
+  <i class="fa-brands fa-whatsapp text-4xl text-green-500/30 mb-3"></i>
+  <p class="text-brand-textMuted">No campaigns found. <a href="/whatsapp/campaigns/new/step/1" class="text-brand-primary hover:underline">Create one</a>.</p>
+</div>
+<% } else { %>
+<table class="w-full text-sm">
+  <thead class="sticky top-0 z-10 bg-brand-sidebar/90 text-[11px] uppercase tracking-wider text-brand-textMuted border-b border-brand-border">
+    <tr>
+      <th class="px-5 py-3 text-left">Campaign</th>
+      <th class="px-4 py-3 text-left">Phone / Template</th>
+      <th class="px-4 py-3 text-center">Status</th>
+      <th class="px-4 py-3 text-center">Sent</th>
+      <th class="px-4 py-3 text-center">Progress</th>
+      <th class="px-4 py-3 text-left">Created</th>
+      <th class="px-4 py-3 text-center">Actions</th>
+    </tr>
+  </thead>
+  <tbody class="divide-y divide-brand-border/40">
+  <% campaigns.forEach(c => {
+    const sColor = {draft:'text-brand-textMuted bg-brand-border/40',active:'text-green-400 bg-green-400/10',paused:'text-yellow-400 bg-yellow-400/10',completed:'text-blue-400 bg-blue-400/10',stopped:'text-red-400 bg-red-400/10'}[c.status]||'text-brand-textMuted';
+    const pct = c.total_contacts ? Math.round((c.messages_sent/c.total_contacts)*100) : 0;
+  %>
+  <tr class="hover:bg-brand-sidebar/30 transition-colors">
+    <td class="px-5 py-3.5">
+      <a href="/whatsapp/campaigns/<%= c.id %>" class="font-medium text-white hover:text-brand-primary"><%= c.name %></a>
+    </td>
+    <td class="px-4 py-3.5 text-brand-textMuted text-xs">
+      <div><%= c.phone_name || c.phone_number || '—' %></div>
+      <div class="text-[10px] mt-0.5 text-brand-textMuted/60"><%= c.template_name || '—' %></div>
+    </td>
+    <td class="px-4 py-3.5 text-center">
+      <span class="px-2 py-0.5 rounded-full text-[11px] font-semibold <%= sColor %>"><%= c.status %></span>
+    </td>
+    <td class="px-4 py-3.5 text-center text-sm"><%= (c.messages_sent||0).toLocaleString() %> / <%= (c.total_contacts||0).toLocaleString() %></td>
+    <td class="px-4 py-3.5">
+      <div class="flex items-center gap-2">
+        <div class="flex-1 h-1.5 bg-brand-border rounded-full overflow-hidden"><div class="h-full bg-green-500 rounded-full" style="width:<%= pct %>%"></div></div>
+        <span class="text-[10px] text-brand-textMuted w-8"><%= pct %>%</span>
+      </div>
+    </td>
+    <td class="px-4 py-3.5 text-brand-textMuted text-xs"><%= new Date(c.created_at).toLocaleDateString('en-IN') %></td>
+    <td class="px-4 py-3.5 text-center">
+      <a href="/whatsapp/campaigns/<%= c.id %>" class="text-brand-primary hover:underline text-xs">View →</a>
+    </td>
+  </tr>
+  <% }) %>
+  </tbody>
+</table>
+<% } %>
+</div>
+
+<!-- Pagination -->
+<div class="shrink-0 px-6 py-3 border-t border-brand-border flex items-center justify-between bg-brand-dark">
+  <span class="text-xs text-brand-textMuted">Showing <%= ((pageNo-1)*limit)+1 %>–<%= Math.min(pageNo*limit,total) %> of <%= total %></span>
+  <div class="flex gap-1">
+    <% if (pageNo > 1) { %><a href="?page=<%= pageNo-1 %>&q=<%= query %>&status=<%= filterStatus %>" class="px-3 py-1.5 text-xs bg-brand-card border border-brand-border rounded-lg hover:border-brand-primary/50">Prev</a><% } %>
+    <% if (pageNo*limit < total) { %><a href="?page=<%= pageNo+1 %>&q=<%= query %>&status=<%= filterStatus %>" class="px-3 py-1.5 text-xs bg-brand-card border border-brand-border rounded-lg hover:border-brand-primary/50">Next</a><% } %>
+  </div>
+</div>
+
+</div>
+<div id="toast-container"></div>
+</body>
+</html>

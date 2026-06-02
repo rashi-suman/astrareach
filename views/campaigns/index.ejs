@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<%- include('../layout/_head', { title: 'Campaigns' }) %>
+<body class="bg-brand-dark text-gray-100 font-sans antialiased">
+<%- include('../layout/_sidebar', { page: 'campaigns', user }) %>
+<div id="main-wrapper" class="flex flex-col h-screen overflow-hidden">
+<%- include('../layout/_header', { breadcrumbs, user }) %>
+
+<div class="flex-1 flex flex-col overflow-hidden min-h-0">
+
+    <!-- Page Header -->
+    <div class="h-16 border-b border-brand-border flex items-center justify-between px-8 bg-brand-sidebar/50 backdrop-blur-md shrink-0">
+        <div class="flex items-center gap-4">
+            <h1 class="text-lg font-semibold">Campaigns</h1>
+            <span class="px-2.5 py-0.5 bg-btnSecondary text-brand-textMuted text-xs font-medium rounded-full border border-btnBorder"><%= total.toLocaleString() %> total</span>
+        </div>
+        <a href="/campaigns/new" class="inline-flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-semibold hover:opacity-90 transition-all">
+            <i class="fa-solid fa-plus"></i>New Campaign
+        </a>
+    </div>
+
+    <!-- Status Summary Strip -->
+    <%
+        const statusMap = {
+            draft:     { cls: 'text-brand-textMuted',  label: 'Draft' },
+            active:    { cls: 'text-green-400',         label: 'Active' },
+            paused:    { cls: 'text-amber-400',         label: 'Paused' },
+            completed: { cls: 'text-blue-400',          label: 'Completed' },
+            stopped:   { cls: 'text-red-400',           label: 'Stopped' },
+        };
+        const allStatuses = ['draft','active','paused','completed','stopped'];
+    %>
+    <div class="shrink-0 px-8 py-2 border-b border-brand-border/50 flex items-center gap-6 bg-brand-sidebar/20">
+        <% allStatuses.forEach(st => {
+            const item = summary.find(s => s.status === st) || { count: 0 };
+            const m = statusMap[st];
+        %>
+        <a href="/campaigns?status=<%= st %><%= query.search ? '&search=' + encodeURIComponent(query.search) : '' %>"
+            class="flex items-center gap-1.5 text-xs transition-all hover:opacity-90 <%= query.status === st ? 'opacity-100' : 'opacity-60 hover:opacity-80' %>">
+            <span class="font-bold text-sm <%= m.cls %>"><%= item.count %></span>
+            <span class="<%= m.cls %> capitalize"><%= m.label %></span>
+        </a>
+        <% }) %>
+        <% if (query.status) { %>
+        <a href="/campaigns<%= query.search ? '?search=' + encodeURIComponent(query.search) : '' %>" class="text-xs text-brand-primary hover:underline ml-auto">Clear status</a>
+        <% } %>
+    </div>
+
+    <!-- Filter + Table -->
+    <section class="flex-1 px-6 pt-3 pb-3 overflow-hidden flex flex-col gap-0 min-h-0">
+
+        <!-- Search + Status Filter -->
+        <form id="filter-form" method="GET" action="/campaigns" class="mb-3 shrink-0">
+            <div class="flex flex-wrap items-center gap-2">
+                <div class="relative shrink-0" style="min-width:220px;max-width:320px;flex:1 1 220px;">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-brand-textMuted text-xs"></i>
+                    <input type="text" name="search" id="camp-search" value="<%= query.search || '' %>"
+                        placeholder="Search campaigns..."
+                        class="w-full bg-btnSecondary border border-btnBorder rounded-md py-1.5 pl-9 pr-3 text-sm focus:outline-none focus:border-brand-primary transition-all">
+                </div>
+                <select name="status" class="bg-btnSecondary border border-btnBorder rounded-md py-1.5 px-3 text-sm focus:outline-none focus:border-brand-primary transition-all min-w-[130px]">
+                    <option value="">All Status</option>
+                    <% allStatuses.forEach(st => { %>
+                    <option value="<%= st %>" <%= query.status === st ? 'selected' : '' %> class="capitalize"><%= st.charAt(0).toUpperCase() + st.slice(1) %></option>
+                    <% }) %>
+                </select>
+                <button type="submit" class="px-3 py-1.5 bg-btnSecondary border border-btnBorder rounded-md text-sm hover:bg-brand-border/50 transition-all">
+                    <i class="fa-solid fa-filter mr-1 text-xs"></i>Filter
+                </button>
+                <% if (query.search || query.status) { %>
+                <a href="/campaigns" class="text-brand-primary text-sm hover:underline">Clear</a>
+                <% } %>
+            </div>
+        </form>
+
+        <!-- Table Scroll Area -->
+        <div class="flex-1 overflow-auto min-h-0 rounded-xl border border-brand-border bg-brand-card">
+            <% if (!campaigns || campaigns.length === 0) { %>
+            <div class="flex flex-col items-center justify-center h-full p-12 text-center">
+                <div class="w-16 h-16 rounded-full bg-brand-border/30 flex items-center justify-center mx-auto mb-4">
+                    <i class="fa-solid fa-paper-plane text-3xl text-brand-textMuted"></i>
+                </div>
+                <p class="text-base font-medium text-brand-textMuted mb-1">No campaigns found</p>
+                <p class="text-sm text-brand-textMuted/60 mb-4"><%= (query.search || query.status) ? 'Try adjusting your filters.' : 'Create your first outreach campaign.' %></p>
+                <% if (!query.search && !query.status) { %>
+                <a href="/campaigns/new" class="inline-flex items-center gap-2 mt-2 px-5 py-2.5 bg-brand-primary text-white rounded-lg text-sm font-medium">
+                    <i class="fa-solid fa-plus"></i>Create Campaign
+                </a>
+                <% } %>
+            </div>
+            <% } else { %>
+            <table class="w-full text-sm">
+                <thead class="sticky top-0 bg-brand-sidebar/90 backdrop-blur-md border-b border-brand-border text-[11px] uppercase tracking-wider text-brand-textMuted z-10">
+                    <tr>
+                        <th class="px-5 py-3 text-left font-medium">Campaign</th>
+                        <th class="px-5 py-3 text-left font-medium">Status</th>
+                        <th class="px-5 py-3 text-left font-medium">Contacts</th>
+                        <th class="px-5 py-3 text-left font-medium">Sent</th>
+                        <th class="px-5 py-3 text-left font-medium">Daily Limit</th>
+                        <th class="px-5 py-3 text-left font-medium">Created</th>
+                        <th class="px-5 py-3 text-right font-medium">Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-brand-border/40">
+                    <% campaigns.forEach(cam => {
+                        const statusCls = {
+                            active:    'bg-green-500/10 text-green-500 border-green-500/20',
+                            draft:     'bg-brand-primary/10 text-brand-primary border-brand-primary/20',
+                            paused:    'bg-amber-500/10 text-amber-500 border-amber-500/20',
+                            completed: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
+                            stopped:   'bg-red-500/10 text-red-500 border-red-500/20',
+                            failed:    'bg-red-500/10 text-red-500 border-red-500/20',
+                        }[cam.status] || 'bg-brand-border text-brand-textMuted border-brand-border';
+                    %>
+                    <tr class="hover:bg-brand-sidebar/20 transition-colors">
+                        <td class="px-5 py-4">
+                            <div>
+                                <a href="/campaigns/<%= cam.id %>" class="font-medium hover:text-brand-primary transition-colors"><%= cam.name %></a>
+                                <% if (cam.description) { %>
+                                <p class="text-xs text-brand-textMuted mt-0.5 truncate max-w-[260px]"><%= cam.description %></p>
+                                <% } %>
+                            </div>
+                        </td>
+                        <td class="px-5 py-4">
+                            <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold border capitalize <%= statusCls %>"><%= cam.status %></span>
+                        </td>
+                        <td class="px-5 py-4 text-brand-textMuted"><%= (cam.total_contacts||0).toLocaleString() %></td>
+                        <td class="px-5 py-4 text-brand-textMuted"><%= (cam.emails_sent||0).toLocaleString() %></td>
+                        <td class="px-5 py-4 text-brand-textMuted"><%= cam.daily_limit %>/day</td>
+                        <td class="px-5 py-4 text-brand-textMuted text-xs"><%= new Date(cam.created_at).toLocaleDateString() %></td>
+                        <td class="px-5 py-4 text-right">
+                            <div class="flex items-center justify-end gap-1.5">
+                                <a href="/campaigns/<%= cam.id %>" class="text-xs px-3 py-1.5 bg-btnSecondary border border-btnBorder rounded hover:bg-brand-border/50 transition-all">View</a>
+                                <% if (cam.status === 'draft') { %>
+                                <form action="/campaigns/<%= cam.id %>/start" method="POST" class="inline">
+                                    <button type="submit" class="text-xs px-3 py-1.5 bg-green-500/10 border border-green-500/30 text-green-500 rounded hover:bg-green-500/20 transition-all">Start</button>
+                                </form>
+                                <% } else if (cam.status === 'active') { %>
+                                <form action="/campaigns/<%= cam.id %>/pause" method="POST" class="inline">
+                                    <button type="submit" class="text-xs px-3 py-1.5 bg-amber-500/10 border border-amber-500/30 text-amber-500 rounded hover:bg-amber-500/20 transition-all">Pause</button>
+                                </form>
+                                <% } else if (cam.status === 'paused') { %>
+                                <form action="/campaigns/<%= cam.id %>/resume" method="POST" class="inline">
+                                    <button type="submit" class="text-xs px-3 py-1.5 bg-brand-primary/10 border border-brand-primary/30 text-brand-primary rounded hover:bg-brand-primary/20 transition-all">Resume</button>
+                                </form>
+                                <% } %>
+                            </div>
+                        </td>
+                    </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+            <% } %>
+        </div>
+
+        <!-- Pagination -->
+        <% const totalPages = Math.ceil(total / limit); %>
+        <% if (totalPages > 1) { %>
+        <div class="shrink-0 flex items-center justify-between pt-3">
+            <span class="text-xs text-brand-textMuted">
+                Showing <%= ((pageNo - 1) * limit + 1).toLocaleString() %>–<%= Math.min(pageNo * limit, total).toLocaleString() %> of <%= total.toLocaleString() %>
+            </span>
+            <div class="flex items-center gap-1">
+                <% if (pageNo > 1) { %>
+                <a href="/campaigns?<%= new URLSearchParams({...query, page: pageNo - 1}).toString() %>"
+                    class="px-3 py-1.5 bg-btnSecondary border border-btnBorder rounded text-xs hover:bg-brand-border/50 transition-all">
+                    <i class="fa-solid fa-chevron-left text-[10px] mr-1"></i>Prev
+                </a>
+                <% } %>
+                <%
+                    const startPg = Math.max(1, pageNo - 2);
+                    const endPg   = Math.min(totalPages, pageNo + 2);
+                    for (let p = startPg; p <= endPg; p++) { %>
+                <a href="/campaigns?<%= new URLSearchParams({...query, page: p}).toString() %>"
+                    class="px-3 py-1.5 border rounded text-xs transition-all <%= p === pageNo ? 'bg-brand-primary border-brand-primary text-white' : 'bg-btnSecondary border-btnBorder hover:bg-brand-border/50' %>">
+                    <%= p %>
+                </a>
+                <% } %>
+                <% if (pageNo < totalPages) { %>
+                <a href="/campaigns?<%= new URLSearchParams({...query, page: pageNo + 1}).toString() %>"
+                    class="px-3 py-1.5 bg-btnSecondary border border-btnBorder rounded text-xs hover:bg-brand-border/50 transition-all">
+                    Next<i class="fa-solid fa-chevron-right text-[10px] ml-1"></i>
+                </a>
+                <% } %>
+            </div>
+        </div>
+        <% } %>
+
+    </section>
+</div>
+</div>
+
+<div id="toast-container"></div>
+<script>
+(function(){
+    const btn=document.getElementById('sidebar-toggle');
+    const sidebar=document.getElementById('sidebar');
+    const wrapper=document.getElementById('main-wrapper');
+    if(btn)btn.addEventListener('click',()=>{sidebar.classList.toggle('collapsed');wrapper.style.marginLeft=sidebar.classList.contains('collapsed')?'60px':'240px';});
+
+    // Auto-submit search
+    const searchInput = document.getElementById('camp-search');
+    if (searchInput) {
+        let searchTimer;
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => document.getElementById('filter-form').submit(), 600);
+        });
+    }
+})();
+</script>
+</body>
+</html>

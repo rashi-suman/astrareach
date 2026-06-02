@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<%- include('../layout/_head', { title: 'New Contact' }) %>
+<body class="bg-brand-dark text-gray-100 font-sans antialiased">
+<%- include('../layout/_sidebar', { page: 'contacts', user }) %>
+<div id="main-wrapper" class="flex flex-col min-h-screen">
+<%- include('../layout/_header', { breadcrumbs, user }) %>
+<main class="flex-1 overflow-y-auto p-6">
+<div class="max-w-2xl mx-auto">
+    <div class="flex items-center justify-between mb-6">
+        <h1 class="text-xl font-semibold">Add New Contact</h1>
+        <a href="/contacts" class="text-sm text-brand-textMuted hover:text-white"><i class="fa-solid fa-arrow-left mr-1.5"></i>Back</a>
+    </div>
+    <form action="/contacts" method="POST" class="bg-brand-card border border-brand-border rounded-xl p-6 space-y-4">
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-xs font-medium text-brand-textMuted uppercase tracking-wide mb-1.5">First Name</label>
+                <input type="text" name="first_name" class="w-full bg-btnSecondary border border-btnBorder rounded-lg py-2.5 px-3.5 text-sm focus:outline-none focus:border-brand-primary transition-all">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-brand-textMuted uppercase tracking-wide mb-1.5">Last Name</label>
+                <input type="text" name="last_name" class="w-full bg-btnSecondary border border-btnBorder rounded-lg py-2.5 px-3.5 text-sm focus:outline-none focus:border-brand-primary transition-all">
+            </div>
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-brand-textMuted uppercase tracking-wide mb-1.5">Email *</label>
+            <input type="email" name="email" required class="w-full bg-btnSecondary border border-btnBorder rounded-lg py-2.5 px-3.5 text-sm focus:outline-none focus:border-brand-primary transition-all">
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-xs font-medium text-brand-textMuted uppercase tracking-wide mb-1.5">Company</label>
+                <input type="text" name="company" class="w-full bg-btnSecondary border border-btnBorder rounded-lg py-2.5 px-3.5 text-sm focus:outline-none focus:border-brand-primary transition-all">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-brand-textMuted uppercase tracking-wide mb-1.5">Job Title</label>
+                <input type="text" name="job_title" class="w-full bg-btnSecondary border border-btnBorder rounded-lg py-2.5 px-3.5 text-sm focus:outline-none focus:border-brand-primary transition-all">
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-xs font-medium text-brand-textMuted uppercase tracking-wide mb-1.5">Phone</label>
+                <input type="text" name="phone" class="w-full bg-btnSecondary border border-btnBorder rounded-lg py-2.5 px-3.5 text-sm focus:outline-none focus:border-brand-primary transition-all">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-brand-textMuted uppercase tracking-wide mb-1.5">Website</label>
+                <input type="url" name="website" class="w-full bg-btnSecondary border border-btnBorder rounded-lg py-2.5 px-3.5 text-sm focus:outline-none focus:border-brand-primary transition-all">
+            </div>
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-brand-textMuted uppercase tracking-wide mb-1.5">WhatsApp number</label>
+            <input type="text" name="whatsapp_phone" class="w-full bg-btnSecondary border border-btnBorder rounded-lg py-2.5 px-3.5 text-sm focus:outline-none focus:border-brand-primary transition-all" placeholder="+91… (optional)">
+            <p class="text-[11px] text-brand-textMuted mt-1">For WhatsApp campaigns and opt-ins. Use international format when possible.</p>
+        </div>
+        <div class="grid grid-cols-2 gap-4">
+            <div>
+                <label class="block text-xs font-medium text-brand-textMuted uppercase tracking-wide mb-1.5">Industry</label>
+                <input type="text" name="industry" class="w-full bg-btnSecondary border border-btnBorder rounded-lg py-2.5 px-3.5 text-sm focus:outline-none focus:border-brand-primary transition-all">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-brand-textMuted uppercase tracking-wide mb-1.5">Country</label>
+                <input type="text" name="country" class="w-full bg-btnSecondary border border-btnBorder rounded-lg py-2.5 px-3.5 text-sm focus:outline-none focus:border-brand-primary transition-all">
+            </div>
+        </div>
+        <div>
+            <label class="block text-xs font-medium text-brand-textMuted uppercase tracking-wide mb-1.5">LinkedIn URL</label>
+            <input type="url" name="linkedin_url" class="w-full bg-btnSecondary border border-btnBorder rounded-lg py-2.5 px-3.5 text-sm focus:outline-none focus:border-brand-primary transition-all">
+        </div>
+        <div class="flex items-center justify-between pt-2">
+            <a href="/contacts" class="px-5 py-2.5 bg-btnSecondary border border-btnBorder rounded-lg text-sm hover:bg-brand-border/50 transition-all">Cancel</a>
+            <button type="submit" class="px-6 py-2.5 bg-brand-primary text-white rounded-lg text-sm font-semibold hover:bg-blue-500 transition-all"><i class="fa-solid fa-plus mr-2"></i>Create Contact</button>
+        </div>
+    </form>
+</div>
+</main>
+</div>
+<script>
+(function(){const btn=document.getElementById('sidebar-toggle');const sidebar=document.getElementById('sidebar');const wrapper=document.getElementById('main-wrapper');if(btn)btn.addEventListener('click',()=>{sidebar.classList.toggle('collapsed');wrapper.style.marginLeft=sidebar.classList.contains('collapsed')?'60px':'240px';});})();
+</script>
+</body>
+</html>

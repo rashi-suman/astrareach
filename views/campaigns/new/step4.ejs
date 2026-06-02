@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<%- include('../../layout/_head', { title: 'New Campaign - Step 4' }) %>
+<body class="bg-brand-dark text-gray-100 font-sans antialiased">
+<%- include('../../layout/_sidebar', { page: 'campaigns', user }) %>
+<div id="main-wrapper" class="flex flex-col min-h-screen">
+<%- include('../../layout/_header', { breadcrumbs, user }) %>
+<main class="flex-1 overflow-y-auto p-6">
+<div class="max-w-2xl mx-auto">
+
+    <!-- Wizard Steps -->
+    <div class="flex items-center gap-0 mb-8">
+        <% [['1','Name'],['2','Audience'],['3','Template'],['4','Launch']].forEach(([num, label], i) => { %>
+        <div class="flex items-center">
+            <div class="flex items-center gap-2">
+                <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold
+                    <%= num === '4' ? 'bg-brand-primary text-white' : parseInt(num) < 4 ? 'bg-green-500 text-white' : 'bg-btnSecondary border border-btnBorder text-brand-textMuted' %>">
+                    <% if (parseInt(num) < 4) { %><i class="fa-solid fa-check text-[10px]"></i><% } else { %><%= num %><% } %>
+                </div>
+                <span class="text-xs font-medium <%= num === '4' ? 'text-white' : parseInt(num) < 4 ? 'text-green-400' : 'text-brand-textMuted' %>"><%= label %></span>
+            </div>
+            <% if (i < 3) { %><div class="h-px w-10 sm:w-16 bg-brand-border mx-3"></div><% } %>
+        </div>
+        <% }) %>
+    </div>
+
+    <!-- Review Summary -->
+    <div class="bg-brand-primary/5 border border-brand-primary/20 rounded-xl p-5 mb-5">
+        <h3 class="font-semibold text-sm mb-3 text-brand-primary flex items-center gap-2">
+            <i class="fa-solid fa-clipboard-check"></i>Campaign Summary
+        </h3>
+        <div class="space-y-2 text-sm">
+            <div class="flex justify-between"><span class="text-brand-textMuted">Name:</span><span class="font-medium"><%= draft.name || '—' %></span></div>
+            <% if (draft.description) { %><div class="flex justify-between"><span class="text-brand-textMuted">Description:</span><span class="font-medium"><%= draft.description %></span></div><% } %>
+            <div class="flex justify-between"><span class="text-brand-textMuted">Audience:</span><span class="font-medium"><%= draft.segment_id ? 'Segment' : (draft.contact_ids && draft.contact_ids.length ? draft.contact_ids.length + ' contacts' : 'None set') %></span></div>
+            <div class="flex justify-between"><span class="text-brand-textMuted">Template:</span><span class="font-medium"><%= draft.template_id ? templates.find(t=>t.id===draft.template_id) ? templates.find(t=>t.id===draft.template_id).name : draft.template_id : '—' %></span></div>
+        </div>
+    </div>
+
+    <div class="bg-brand-card border border-brand-border rounded-xl p-6 space-y-5">
+        <h2 class="text-lg font-semibold">Schedule &amp; Launch</h2>
+
+        <form action="/campaigns/new/step/4" method="POST" class="space-y-5">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-brand-textMuted uppercase tracking-wide mb-1.5">Start date</label>
+                    <input type="date" name="schedule_date" value="<%= (draft && draft.schedule_date) ? draft.schedule_date : new Date().toISOString().slice(0,10) %>"
+                        class="w-full bg-btnSecondary border border-btnBorder rounded-lg py-2.5 px-3.5 text-sm focus:outline-none focus:border-brand-primary transition-all">
+                    <p class="text-[10px] text-brand-textMuted mt-1">First send day (in the timezone below). Daily sends use this time.</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-brand-textMuted uppercase tracking-wide mb-1.5">Send time</label>
+                    <input type="time" name="send_time" value="<%= (draft && draft.send_time) ? draft.send_time : '09:00' %>"
+                        class="w-full bg-btnSecondary border border-btnBorder rounded-lg py-2.5 px-3.5 text-sm focus:outline-none focus:border-brand-primary transition-all">
+                </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-brand-textMuted uppercase tracking-wide mb-1.5">Daily send limit</label>
+                    <input type="number" name="daily_limit" value="<%= (draft && draft.daily_limit) ? draft.daily_limit : 50 %>" min="1" max="500"
+                        class="w-full bg-btnSecondary border border-btnBorder rounded-lg py-2.5 px-3.5 text-sm focus:outline-none focus:border-brand-primary transition-all">
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-brand-textMuted uppercase tracking-wide mb-1.5">Timezone</label>
+                <% const tzSel = (draft && draft.timezone) ? draft.timezone : 'Asia/Kolkata'; %>
+                <select name="timezone" class="w-full bg-btnSecondary border border-btnBorder rounded-lg py-2.5 px-3.5 text-sm focus:outline-none focus:border-brand-primary transition-all">
+                    <option value="Asia/Kolkata" <%= tzSel === 'Asia/Kolkata' ? 'selected' : '' %>>Asia/Kolkata (IST)</option>
+                    <option value="America/New_York" <%= tzSel === 'America/New_York' ? 'selected' : '' %>>America/New_York (EST)</option>
+                    <option value="America/Los_Angeles" <%= tzSel === 'America/Los_Angeles' ? 'selected' : '' %>>America/Los_Angeles (PST)</option>
+                    <option value="Europe/London" <%= tzSel === 'Europe/London' ? 'selected' : '' %>>Europe/London (GMT)</option>
+                    <option value="UTC" <%= tzSel === 'UTC' ? 'selected' : '' %>>UTC</option>
+                </select>
+            </div>
+            <div class="flex items-center gap-3 p-4 bg-brand-dark border border-brand-border/50 rounded-xl">
+                <input type="checkbox" name="start_now" value="1" id="start-now" class="rounded border-btnBorder">
+                <label for="start-now" class="text-sm cursor-pointer">
+                    <span class="font-medium">Start campaign immediately</span>
+                    <p class="text-xs text-brand-textMuted mt-0.5">Campaign will start processing contacts right away</p>
+                </label>
+            </div>
+
+            <div class="flex justify-between pt-2">
+                <a href="/campaigns/new/step/3" class="px-5 py-2.5 bg-btnSecondary border border-btnBorder rounded-lg text-sm hover:bg-brand-border/50 transition-all">
+                    <i class="fa-solid fa-arrow-left mr-2"></i>Back
+                </a>
+                <button type="submit" class="px-6 py-2.5 bg-green-500 text-white rounded-lg text-sm font-semibold hover:bg-green-400 transition-all">
+                    <i class="fa-solid fa-rocket mr-2"></i>Create Campaign
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+</main>
+</div>
+<script>
+(function(){const btn=document.getElementById('sidebar-toggle');const sidebar=document.getElementById('sidebar');const wrapper=document.getElementById('main-wrapper');if(btn)btn.addEventListener('click',()=>{sidebar.classList.toggle('collapsed');wrapper.style.marginLeft=sidebar.classList.contains('collapsed')?'60px':'240px';});})();
+</script>
+</body>
+</html>

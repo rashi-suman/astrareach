@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<%- include('../../layout/_head', { title: 'New WA Template' }) %>
+<body class="bg-brand-dark text-gray-100 font-sans antialiased">
+<%- include('../../layout/_sidebar', { page: 'whatsapp', user }) %>
+<div id="main-wrapper" class="flex flex-col min-h-screen">
+<%- include('../../layout/_header', { breadcrumbs, user }) %>
+<main class="flex-1 p-6">
+
+<div class="max-w-6xl mx-auto">
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold text-white">New WhatsApp Template</h1>
+      <p class="text-brand-textMuted text-sm mt-1">For Meta Cloud / 360dialog numbers, we submit the template to Meta from here. Marketing templates stay pending until Meta approves—use <strong>Sync from Meta</strong> on the list page to refresh status.</p>
+    </div>
+    <a href="/whatsapp/templates" class="px-4 py-2 bg-brand-sidebar border border-brand-border rounded-lg text-sm hover:border-brand-primary/50">
+      <i class="fa-solid fa-arrow-left mr-2"></i>Back
+    </a>
+  </div>
+
+  <div class="grid grid-cols-1 xl:grid-cols-2 gap-6">
+    <!-- Form -->
+    <form action="/whatsapp/templates" method="POST" id="tpl-form" class="space-y-5">
+      <!-- Phone number -->
+      <div class="bg-brand-card border border-brand-border rounded-xl p-5">
+        <h3 class="font-semibold mb-4">WABA Phone Number</h3>
+        <select name="phone_number_id" required onchange="updatePreview()" class="w-full bg-brand-sidebar border border-brand-border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-brand-primary">
+          <option value="">— Select phone number —</option>
+          <% phones.forEach(p => { %>
+          <option value="<%= p.phone_number_id %>"><%= p.display_name %> (<%= p.phone_number %>) — <%= p.bsp %></option>
+          <% }) %>
+        </select>
+      </div>
+
+      <!-- Basic info -->
+      <div class="bg-brand-card border border-brand-border rounded-xl p-5 space-y-4">
+        <h3 class="font-semibold">Basic Info</h3>
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <label class="block text-xs text-brand-textMuted mb-1.5">Template Name * <span class="text-[10px]">(lowercase_underscores)</span></label>
+            <input name="name" required oninput="this.value=this.value.toLowerCase().replace(/[^a-z0-9_]/g,''); updatePreview()"
+              class="w-full bg-brand-sidebar border border-brand-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-primary" placeholder="my_template_name">
+          </div>
+          <div>
+            <label class="block text-xs text-brand-textMuted mb-1.5">Category *</label>
+            <select name="category" required class="w-full bg-brand-sidebar border border-brand-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-primary">
+              <option value="MARKETING">MARKETING</option>
+              <option value="UTILITY">UTILITY</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs text-brand-textMuted mb-1.5">Language</label>
+          <select name="language" class="w-full bg-brand-sidebar border border-brand-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-primary">
+            <option value="en">English</option>
+            <option value="en_IN">English (India)</option>
+            <option value="hi">Hindi</option>
+            <option value="mr">Marathi</option>
+            <option value="ta">Tamil</option>
+            <option value="te">Telugu</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Header -->
+      <div class="bg-brand-card border border-brand-border rounded-xl p-5 space-y-3">
+        <h3 class="font-semibold">Header <span class="text-brand-textMuted text-xs font-normal">(Optional)</span></h3>
+        <div>
+          <label class="block text-xs text-brand-textMuted mb-1.5">Header Type</label>
+          <select name="header_type" id="header-type" onchange="updateHeaderUI(); updatePreview()"
+            class="w-full bg-brand-sidebar border border-brand-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-primary">
+            <option value="">None</option>
+            <option value="TEXT">Text</option>
+            <option value="IMAGE">Image (URL)</option>
+          </select>
+        </div>
+        <div id="header-content-wrap" class="hidden">
+          <label class="block text-xs text-brand-textMuted mb-1.5" id="header-content-label">Header Content</label>
+          <input name="header_content" id="header-content" oninput="updatePreview()"
+            class="w-full bg-brand-sidebar border border-brand-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-primary" placeholder="Header text or image URL">
+        </div>
+      </div>
+
+      <!-- Body -->
+      <div class="bg-brand-card border border-brand-border rounded-xl p-5 space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="font-semibold">Body *</h3>
+          <div class="flex gap-1.5">
+            <button type="button" onclick="insertVar()" class="px-2 py-1 text-xs bg-brand-primary/10 text-brand-secondary border border-brand-primary/20 rounded hover:bg-brand-primary/20">+ {{variable}}</button>
+            <button type="button" onclick="insertBold()" class="px-2 py-1 text-xs bg-brand-sidebar border border-brand-border rounded font-bold hover:border-brand-primary/50">B</button>
+          </div>
+        </div>
+        <textarea name="body_text" id="body-text" required oninput="updatePreview()" rows="6"
+          class="w-full bg-brand-sidebar border border-brand-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-primary resize-none"
+          placeholder="Hello {{1}}, your appointment is confirmed for {{2}}.&#10;&#10;Use {{N}} for variables. *bold text* for bold."></textarea>
+        <p class="text-[10px] text-brand-textMuted">Variables: {{1}}, {{2}}, … Use *text* for bold.</p>
+      </div>
+
+      <!-- Footer -->
+      <div class="bg-brand-card border border-brand-border rounded-xl p-5">
+        <label class="block text-xs text-brand-textMuted mb-1.5">Footer <span class="font-normal">(Optional)</span></label>
+        <input name="footer_text" oninput="updatePreview()" class="w-full bg-brand-sidebar border border-brand-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-primary" placeholder="Reply STOP to unsubscribe">
+      </div>
+
+      <!-- Buttons -->
+      <div class="bg-brand-card border border-brand-border rounded-xl p-5 space-y-3">
+        <div class="flex items-center justify-between">
+          <h3 class="font-semibold">Buttons <span class="text-brand-textMuted text-xs font-normal">(Up to 3)</span></h3>
+          <button type="button" onclick="addButton()" class="px-3 py-1 text-xs bg-brand-sidebar border border-brand-border rounded-lg hover:border-brand-primary/50">+ Add Button</button>
+        </div>
+        <div id="buttons-container" class="space-y-2"></div>
+      </div>
+
+      <!-- Submit -->
+      <div class="flex gap-3">
+        <a href="/whatsapp/templates" class="flex-1 py-2.5 text-center bg-brand-sidebar border border-brand-border rounded-lg text-sm hover:border-brand-border/80">Cancel</a>
+        <button type="submit" class="flex-1 py-2.5 bg-brand-primary text-white rounded-lg text-sm font-semibold hover:bg-purple-500">
+          <i class="fa-solid fa-paper-plane mr-2"></i>Create Template
+        </button>
+      </div>
+    </form>
+
+    <!-- Live Preview + AI -->
+    <div class="sticky top-6 self-start space-y-5">
+      <div class="bg-brand-card border border-brand-border rounded-xl p-5 space-y-3">
+        <div class="flex items-center justify-between gap-2">
+          <h3 class="font-semibold flex items-center gap-2"><i class="fa-solid fa-wand-magic-sparkles text-brand-secondary"></i> AI draft</h3>
+        </div>
+        <p class="text-[11px] text-brand-textMuted">Describe your message goal. We fill name, body, footer, header, and buttons—you still pick the WABA number and can edit before submit.</p>
+        <% if (typeof aiEnabled !== 'undefined' && !aiEnabled) { %>
+        <p class="text-xs text-amber-400/90">Set <code class="text-[10px] bg-brand-sidebar px-1 rounded">ANTHROPIC_API_KEY</code> on the server to enable generation (same as email AI).</p>
+        <% } %>
+        <textarea id="ai-prompt" rows="3" placeholder="e.g. Remind customers about a webinar next week with a link to register and one personalization for their first name…"
+          class="w-full bg-brand-sidebar border border-brand-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-primary resize-none"></textarea>
+        <div class="grid grid-cols-2 gap-2">
+          <select id="ai-tone" class="bg-brand-sidebar border border-brand-border rounded-lg px-2 py-2 text-xs">
+            <option value="professional">Professional</option>
+            <option value="friendly">Friendly</option>
+            <option value="urgent">Urgent / short</option>
+            <option value="playful">Playful</option>
+          </select>
+          <button type="button" id="ai-generate-btn" class="py-2 text-xs font-semibold rounded-lg bg-brand-primary/90 text-white hover:bg-brand-primary disabled:opacity-40 disabled:cursor-not-allowed"
+            <%= (typeof aiEnabled !== 'undefined' && aiEnabled) ? '' : 'disabled' %> onclick="runAiGenerate()">
+            <i class="fa-solid fa-sparkles mr-1"></i>Generate
+          </button>
+        </div>
+        <p id="ai-status" class="text-[10px] text-brand-textMuted min-h-[1rem]"></p>
+      </div>
+
+      <div class="bg-brand-card border border-brand-border rounded-xl p-5">
+        <h3 class="font-semibold mb-4">Live Preview</h3>
+        <div class="bg-[#0b141a] rounded-xl p-5 min-h-[300px]" style="background-image:url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAYAAACNMs+9AAAAAXNSR0IArs4c6QAAAARnQU5ErkJggg==')">
+          <div class="flex justify-end">
+            <div id="preview-bubble" class="max-w-[260px] bg-[#005c4b] rounded-2xl rounded-tr-sm px-3 py-2 text-sm text-white leading-relaxed shadow-lg">
+              <p class="text-gray-300 text-xs text-center">Your preview will appear here…</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</main>
+</div>
+<div id="toast-container"></div>
+<script>
+const AI_ENABLED = <%= JSON.stringify(!!(typeof aiEnabled !== 'undefined' && aiEnabled)) %>;
+let varCount = 0;
+let btnCount = 0;
+
+function insertVar() {
+  const ta = document.getElementById('body-text');
+  const pos = ta.selectionStart;
+  varCount++;
+  const v = `{{${varCount}}}`;
+  ta.value = ta.value.slice(0, pos) + v + ta.value.slice(pos);
+  ta.setSelectionRange(pos + v.length, pos + v.length);
+  ta.focus();
+  updatePreview();
+}
+
+function insertBold() {
+  const ta = document.getElementById('body-text');
+  const start = ta.selectionStart, end = ta.selectionEnd;
+  const sel = ta.value.slice(start, end) || 'bold text';
+  ta.value = ta.value.slice(0, start) + `*${sel}*` + ta.value.slice(end);
+  updatePreview();
+}
+
+function updateHeaderUI() {
+  const type = document.getElementById('header-type').value;
+  const wrap  = document.getElementById('header-content-wrap');
+  const label = document.getElementById('header-content-label');
+  const input = document.getElementById('header-content');
+  if (type) {
+    wrap.classList.remove('hidden');
+    label.textContent = type === 'IMAGE' ? 'Image URL' : 'Header Text';
+    input.placeholder = type === 'IMAGE' ? 'https://example.com/image.jpg' : 'Header text here';
+  } else {
+    wrap.classList.add('hidden');
+  }
+}
+
+function addButton() {
+  if (btnCount >= 3) { toastWarning('Max 3 buttons allowed'); return; }
+  btnCount++;
+  const id = `btn-${btnCount}`;
+  const div = document.createElement('div');
+  div.id = id;
+  div.className = 'flex gap-2 items-start p-3 bg-brand-sidebar border border-brand-border rounded-lg';
+  div.innerHTML = `
+    <select name="buttons[${btnCount-1}][type]" onchange="updatePreview()" class="bg-brand-dark border border-brand-border rounded px-2 py-1.5 text-xs w-28">
+      <option value="QUICK_REPLY">Quick Reply</option>
+      <option value="URL">URL (CTA)</option>
+      <option value="PHONE_NUMBER">Call</option>
+    </select>
+    <input name="buttons[${btnCount-1}][text]" oninput="updatePreview()" placeholder="Button text" class="flex-1 bg-brand-dark border border-brand-border rounded px-2 py-1.5 text-xs">
+    <input name="buttons[${btnCount-1}][url]" oninput="updatePreview()" placeholder="URL (CTA)" class="flex-1 bg-brand-dark border border-brand-border rounded px-2 py-1.5 text-xs min-w-0">
+    <input name="buttons[${btnCount-1}][phone_number]" oninput="updatePreview()" placeholder="E.164 no +" class="w-24 bg-brand-dark border border-brand-border rounded px-2 py-1.5 text-xs">
+    <button type="button" onclick="document.getElementById('${id}').remove();updatePreview();" class="text-red-400 hover:text-red-300 text-xs px-1"><i class="fa-solid fa-xmark"></i></button>`;
+  document.getElementById('buttons-container').appendChild(div);
+  updatePreview();
+}
+
+function updatePreview() {
+  const headerType    = document.getElementById('header-type').value;
+  const headerContent = document.getElementById('header-content')?.value || '';
+  const bodyText      = document.getElementById('body-text').value;
+  const footerEl      = document.querySelector('[name="footer_text"]');
+  const footer        = footerEl ? footerEl.value : '';
+
+  let html = '';
+  if (headerType === 'TEXT' && headerContent) html += `<p class="font-bold text-xs mb-1.5">${headerContent}</p>`;
+  if (headerType === 'IMAGE' && headerContent) html += `<img src="${headerContent}" class="rounded-lg mb-2 w-full object-cover h-28" onerror="this.style.display='none'">`;
+
+  const formatted = bodyText
+    .replace(/\*([^*]+)\*/g, '<strong>$1</strong>')
+    .replace(/\{\{(\d+)\}\}/g, '<span class="bg-white/20 px-1 rounded text-xs">{{$1}}</span>')
+    .replace(/\n/g, '<br>');
+  html += `<div class="text-sm leading-relaxed">${formatted || '<span class="text-gray-400 text-xs">Body text…</span>'}</div>`;
+
+  if (footer) html += `<p class="text-[11px] text-gray-300 mt-2 border-t border-white/10 pt-1">${footer}</p>`;
+  html += `<div class="text-right text-[10px] text-gray-300 mt-1">11:30 AM ✓✓</div>`;
+
+  // Buttons
+  const btnEls = document.querySelectorAll('[name*="[text]"]');
+  if (btnEls.length) {
+    html += `<div class="border-t border-white/20 mt-2 pt-2 space-y-1">`;
+    btnEls.forEach(b => {
+      html += `<div class="text-center text-xs text-[#53bdeb] py-0.5">${b.value || 'Button'}</div>`;
+    });
+    html += `</div>`;
+  }
+
+  document.getElementById('preview-bubble').innerHTML = html;
+}
+
+function applyAiDraft(d) {
+  if (!d) return;
+  const nameEl = document.querySelector('[name="name"]');
+  if (nameEl && d.name) nameEl.value = String(d.name).toLowerCase().replace(/[^a-z0-9_]/g, '');
+  const body = document.getElementById('body-text');
+  if (body && d.body_text) body.value = d.body_text;
+  const footer = document.querySelector('[name="footer_text"]');
+  if (footer) footer.value = d.footer_text || '';
+  const ht = document.getElementById('header-type');
+  if (d.header_type === 'TEXT' && d.header_content) {
+    ht.value = 'TEXT';
+    updateHeaderUI();
+    const hci = document.getElementById('header-content');
+    if (hci) hci.value = d.header_content;
+  } else {
+    ht.value = '';
+    updateHeaderUI();
+  }
+  document.getElementById('buttons-container').innerHTML = '';
+  btnCount = 0;
+  (d.buttons || []).slice(0, 3).forEach((b) => {
+    addButton();
+    const rows = document.querySelectorAll('#buttons-container > div');
+    const row = rows[rows.length - 1];
+    if (!row) return;
+    const sel = row.querySelector('select');
+    const ins = row.querySelectorAll('input');
+    sel.value = (b.type || 'QUICK_REPLY').toUpperCase();
+    if (ins[0]) ins[0].value = b.text || '';
+    if (ins[1]) ins[1].value = b.url || '';
+    if (ins[2]) ins[2].value = b.phone_number || '';
+  });
+  const matches = String(d.body_text || '').match(/\{\{(\d+)\}\}/g) || [];
+  const nums = matches.map((m) => parseInt(m.replace(/\D/g, ''), 10));
+  varCount = nums.length ? Math.max(...nums) : 0;
+  updatePreview();
+}
+
+async function runAiGenerate() {
+  const prompt = document.getElementById('ai-prompt').value.trim();
+  if (prompt.length < 12) { toastError('Enter at least 12 characters for the AI prompt.'); return; }
+  const btn = document.getElementById('ai-generate-btn');
+  const st = document.getElementById('ai-status');
+  btn.disabled = true;
+  st.textContent = 'Generating…';
+  try {
+    const res = await fetch('/whatsapp/templates/ai-generate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({
+        prompt,
+        tone: document.getElementById('ai-tone').value,
+        category: document.querySelector('[name="category"]').value,
+        language: document.querySelector('[name="language"]').value,
+      }),
+    });
+    const j = await res.json();
+    if (!res.ok || !j.ok) { toastError(j.error || 'Generation failed'); st.textContent = ''; return; }
+    applyAiDraft(j.draft);
+    toastSuccess('Draft applied — review fields and create.');
+    st.textContent = '';
+  } catch (e) {
+    toastError(e.message || 'Request failed');
+    st.textContent = '';
+  } finally {
+    btn.disabled = !AI_ENABLED;
+  }
+}
+
+// Serialize buttons on submit
+document.getElementById('tpl-form').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const formData = new FormData(this);
+  const buttons = [];
+  let i = 0;
+  while (formData.get(`buttons[${i}][text]`) !== null) {
+    const row = { type: formData.get(`buttons[${i}][type]`), text: formData.get(`buttons[${i}][text]`), url: formData.get(`buttons[${i}][url]`), phone_number: formData.get(`buttons[${i}][phone_number]`) };
+    buttons.push(row);
+    i++;
+  }
+  // Remove button fields and add as JSON
+  const obj = Object.fromEntries([...formData.entries()].filter(([k]) => !k.startsWith('buttons')));
+  obj.buttons = JSON.stringify(buttons);
+
+  fetch('/whatsapp/templates', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+    body: JSON.stringify(obj),
+  }).then(r => r.json()).then(j => {
+    if (!j.ok) { toastError(j.error || 'Failed'); return; }
+    if (j.meta && j.meta.error) toastWarning('Saved locally. Meta rejected submission: ' + j.meta.error);
+    else if (j.meta && j.meta.skipped && j.meta.message) toastWarning(j.meta.message);
+    else if (j.meta && j.meta.submitted) toastSuccess('Submitted to Meta. Status: ' + (j.meta.status || 'PENDING') + '. Sync from the templates list after Meta approves.');
+    else toastSuccess('Template saved.');
+    setTimeout(() => location.href='/whatsapp/templates', j.meta && j.meta.error ? 2200 : 1200);
+  });
+});
+</script>
+</body>
+</html>

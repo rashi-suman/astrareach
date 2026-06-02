@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<%- include('../../layout/_head', { title: 'WA Inbox' }) %>
+<body class="bg-brand-dark text-gray-100 font-sans antialiased">
+<%- include('../../layout/_sidebar', { page: 'whatsapp', user }) %>
+<div id="main-wrapper" class="flex flex-col" style="height:100vh;overflow:hidden;">
+<%- include('../../layout/_header', { breadcrumbs, user }) %>
+
+<div class="flex flex-1 overflow-hidden">
+  <!-- Contact thread list -->
+  <div class="w-72 bg-brand-sidebar border-r border-brand-border flex flex-col overflow-hidden">
+    <div class="p-4 border-b border-brand-border">
+      <h2 class="font-semibold text-white flex items-center gap-2">
+        <i class="fa-brands fa-whatsapp text-green-400"></i>Inbox
+      </h2>
+    </div>
+    <div class="flex-1 overflow-y-auto">
+      <% if (threads.length === 0) { %>
+      <div class="p-6 text-center text-brand-textMuted text-sm">No messages yet</div>
+      <% } %>
+      <% threads.forEach(t => {
+        const isActive = activePhone === t.from_phone;
+        const expired  = t.session_expires_at && new Date(t.session_expires_at) < new Date();
+      %>
+      <a href="/whatsapp/inbox/<%= t.contact_id || '' %>?phone=<%= encodeURIComponent(t.from_phone) %>"
+         class="flex items-start gap-3 p-4 border-b border-brand-border hover:bg-brand-card transition-all cursor-pointer <%= isActive ? 'bg-brand-card border-l-2 border-l-brand-primary' : '' %>">
+        <div class="w-9 h-9 rounded-full bg-brand-primary/20 flex items-center justify-center text-sm font-bold text-brand-primary shrink-0">
+          <%= (t.first_name||t.from_phone||'?')[0].toUpperCase() %>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-white truncate"><%= t.first_name ? `${t.first_name} ${t.last_name||''}` : t.from_phone %></p>
+          <p class="text-[11px] text-brand-textMuted truncate mt-0.5"><%= t.message_body || '' %></p>
+          <p class="text-[10px] text-brand-textMuted/60 mt-0.5"><%= new Date(t.created_at).toLocaleString('en-IN') %></p>
+          <% if (!expired && t.session_expires_at) { %>
+          <span class="text-[9px] text-green-400 bg-green-400/10 px-1.5 py-0.5 rounded mt-0.5 inline-block">Session active</span>
+          <% } %>
+        </div>
+      </a>
+      <% }) %>
+    </div>
+  </div>
+
+  <!-- Conversation pane -->
+  <div class="flex-1 flex flex-col overflow-hidden bg-[#0b141a]">
+    <% if (!activePhone) { %>
+    <div class="flex-1 flex items-center justify-center text-center">
+      <div>
+        <i class="fa-brands fa-whatsapp text-6xl text-green-500/20 mb-4"></i>
+        <p class="text-brand-textMuted">Select a conversation to view</p>
+      </div>
+    </div>
+    <% } else { %>
+    <!-- Header -->
+    <div class="bg-[#202c33] px-5 py-3 border-b border-white/5 flex items-center gap-3">
+      <div class="w-9 h-9 rounded-full bg-brand-primary/30 flex items-center justify-center font-bold text-brand-primary">
+        <%= (contact?.first_name||activePhone)[0].toUpperCase() %>
+      </div>
+      <div>
+        <p class="font-semibold text-white text-sm"><%= contact ? `${contact.first_name||''} ${contact.last_name||''}`.trim() : activePhone %></p>
+        <p class="text-[11px] text-gray-400 font-mono"><%= activePhone %></p>
+      </div>
+    </div>
+
+    <!-- Messages -->
+    <div id="messages-pane" class="flex-1 overflow-y-auto p-5 space-y-3">
+      <% messages.forEach(m => { %>
+      <div class="flex justify-<%= m.message_type === 'outbound' ? 'end' : 'start' %>">
+        <div class="max-w-xs px-3 py-2 rounded-2xl text-sm leading-relaxed shadow
+          <%= m.message_type === 'outbound' ? 'bg-[#005c4b] text-white rounded-tr-sm' : 'bg-[#202c33] text-gray-100 rounded-tl-sm' %>">
+          <p><%= m.message_body || '[media message]' %></p>
+          <div class="text-[10px] text-gray-400 mt-1 text-right"><%= new Date(m.created_at).toLocaleTimeString('en-IN') %></div>
+        </div>
+      </div>
+      <% }) %>
+    </div>
+
+    <!-- Session status -->
+    <% const sessionActive = contact?.whatsapp_session_active; %>
+    <div class="bg-[#202c33] border-t border-white/5 p-4">
+      <% if (sessionActive) { %>
+      <p class="text-center text-xs text-brand-textMuted">
+        <span class="text-green-400 font-medium">● Session active</span> — Contact replied within 24 hours. Free-form messaging allowed.
+      </p>
+      <% } else { %>
+      <p class="text-center text-xs text-brand-textMuted">
+        <i class="fa-solid fa-lock mr-1 text-yellow-400"></i>
+        Session expired or not started. Only approved templates can be sent via campaigns.
+      </p>
+      <% } %>
+    </div>
+    <% } %>
+  </div>
+</div>
+
+</div>
+<div id="toast-container"></div>
+<script>
+// Scroll to bottom of messages
+const pane = document.getElementById('messages-pane');
+if (pane) pane.scrollTop = pane.scrollHeight;
+</script>
+</body>
+</html>

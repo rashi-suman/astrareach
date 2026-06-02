@@ -1,0 +1,83 @@
+<%
+const bc = typeof breadcrumbs !== 'undefined' ? breadcrumbs : [];
+const u = typeof user !== 'undefined' && user ? user : null;
+const initials = u && u.avatar_initials ? u.avatar_initials : (u && u.name ? u.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase() : 'AD');
+const now = new Date();
+const days = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const dateStr = days[now.getDay()] + ', ' + now.getDate() + ' ' + months[now.getMonth()] + ' ' + now.getFullYear();
+%>
+<header id="header" class="h-14 bg-brand-sidebar border-b border-brand-border flex items-center justify-between px-6 sticky top-0 z-40 shrink-0">
+    <div id="breadcrumb" class="text-sm text-brand-textMuted flex items-center gap-2">
+        <% bc.forEach((crumb, i) => { %>
+            <% if (i > 0) { %><span class="opacity-40">/</span><% } %>
+            <% if (i === bc.length - 1) { %>
+                <span class="text-white font-medium"><%= crumb %></span>
+            <% } else { %>
+                <span><%= crumb %></span>
+            <% } %>
+        <% }) %>
+    </div>
+    <div id="header-right" class="flex items-center gap-6">
+        <span class="text-xs text-brand-textMuted hidden sm:block"><%= dateStr %></span>
+        <div class="relative cursor-pointer">
+            <i class="fa-regular fa-bell text-brand-textMuted hover:text-white"></i>
+        </div>
+        <% if (u) { %>
+        <div class="relative" id="user-menu-wrap">
+            <button id="user-menu-btn" class="w-8 h-8 rounded-full bg-brand-primary flex items-center justify-center text-xs font-bold cursor-pointer focus:outline-none select-none">
+                <%= initials %>
+            </button>
+            <div id="user-menu-dropdown" class="hidden absolute right-0 top-11 w-52 bg-brand-card border border-brand-border rounded-xl shadow-2xl z-50 py-1">
+                <div class="px-4 py-3 border-b border-brand-border">
+                    <p class="text-sm font-semibold text-white"><%= u.name %></p>
+                    <p class="text-[11px] text-brand-textMuted mt-0.5"><%= u.email %></p>
+                </div>
+                <a href="/settings" class="flex items-center gap-2.5 px-4 py-2.5 text-sm text-brand-textMuted hover:text-white hover:bg-brand-border/30 transition-colors">
+                    <i class="fa-solid fa-gear text-xs w-4 text-center"></i> Settings
+                </a>
+                <form action="/logout" method="POST">
+                    <button type="submit" class="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-colors">
+                        <i class="fa-solid fa-right-from-bracket text-xs w-4 text-center"></i> Logout
+                    </button>
+                </form>
+            </div>
+        </div>
+        <script>
+        (function(){
+            const btn  = document.getElementById('user-menu-btn');
+            const menu = document.getElementById('user-menu-dropdown');
+            if (!btn || !menu) return;
+            btn.addEventListener('click', function(e){
+                e.stopPropagation();
+                menu.classList.toggle('hidden');
+            });
+            document.addEventListener('click', function(e){
+                if (!document.getElementById('user-menu-wrap').contains(e.target)) {
+                    menu.classList.add('hidden');
+                }
+            });
+        })();
+        </script>
+        <% } %>
+    </div>
+</header>
+
+<!-- Global toast container -->
+<div id="toast-container"></div>
+
+<!-- Auto-fire flash messages as toasts -->
+<script>
+(function(){
+    function fireFlash(msgs, type) {
+        if (!msgs || !msgs.length) return;
+        msgs.forEach(function(m){ if (m) window.showToast && window.showToast(m, type); });
+    }
+    document.addEventListener('DOMContentLoaded', function(){
+        fireFlash(<%- JSON.stringify(typeof flash_success !== 'undefined' ? flash_success : []) %>, 'success');
+        fireFlash(<%- JSON.stringify(typeof flash_error   !== 'undefined' ? flash_error   : []) %>, 'error');
+        fireFlash(<%- JSON.stringify(typeof flash_info    !== 'undefined' ? flash_info    : []) %>, 'info');
+        fireFlash(<%- JSON.stringify(typeof flash_warning !== 'undefined' ? flash_warning : []) %>, 'warning');
+    });
+})();
+</script>

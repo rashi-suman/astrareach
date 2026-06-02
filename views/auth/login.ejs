@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login — AstraReach</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="icon" type="image/png" href="/images/logo-main.png">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] },
+                    colors: {
+                        brand: { dark: '#0f1117', sidebar: '#161b27', card: '#1e2535', border: '#2a3347', primary: '#623CEA', textMuted: '#8b93a7' },
+                        btnSecondary: '#252d3d', btnBorder: '#334060'
+                    }
+                }
+            }
+        }
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js" crossorigin="anonymous"></script>
+    <style>::-webkit-scrollbar{display:none}
+        #toast-container{position:fixed;bottom:24px;right:24px;z-index:9999;display:flex;flex-direction:column-reverse;gap:10px;pointer-events:none}
+        .toast{background:#1e2535;border:1px solid #2a3347;border-radius:12px;padding:13px 16px;font-size:13px;min-width:300px;max-width:420px;display:flex;align-items:flex-start;gap:11px;box-shadow:0 8px 32px rgba(0,0,0,.45);pointer-events:all;position:relative;overflow:hidden;animation:toastIn .25s cubic-bezier(.16,1,.3,1)}
+        .toast.hiding{opacity:0;transform:translateX(20px);transition:opacity .2s,transform .2s}
+        .toast.error{border-left:3px solid #ef4444}.toast.error .toast-icon{color:#ef4444}.toast.error .toast-progress{background:#ef4444}
+        .toast.success{border-left:3px solid #22c55e}.toast.success .toast-icon{color:#22c55e}.toast.success .toast-progress{background:#22c55e}
+        .toast.warning{border-left:3px solid #f59e0b}.toast.warning .toast-icon{color:#f59e0b}.toast.warning .toast-progress{background:#f59e0b}
+        .toast.info{border-left:3px solid #623CEA}.toast.info .toast-icon{color:#623CEA}.toast.info .toast-progress{background:#623CEA}
+        .toast-progress{position:absolute;bottom:0;left:0;height:2px;border-radius:0 0 12px 12px;transition:width linear}
+        .toast-icon{flex-shrink:0;width:18px;height:18px;display:flex;align-items:center;justify-content:center;margin-top:1px}
+        .toast-body{flex:1}.toast-title{font-weight:600;font-size:13px;line-height:1.3}.toast-msg{font-size:12px;color:#8b93a7;margin-top:2px;line-height:1.4}
+        .toast-close{flex-shrink:0;background:none;border:none;color:#8b93a7;cursor:pointer;font-size:13px;padding:0 0 0 4px;line-height:1;margin-top:1px}
+        .toast-close:hover{color:#e8eaf2}
+        @keyframes toastIn{from{opacity:0;transform:translateX(24px) scale(.96)}to{opacity:1;transform:translateX(0) scale(1)}}
+    </style>
+</head>
+<body class="bg-brand-dark text-gray-100 font-sans antialiased min-h-screen flex items-center justify-center">
+
+<div class="w-full max-w-md px-6">
+    <!-- Logo -->
+    <div class="text-center mb-8">
+        <div class="flex items-center justify-center gap-3 mb-3">
+            <img src="/images/logo-main.png" alt="AstraReach" class="w-10 h-10 object-contain">
+            <h1 class="text-2xl font-bold tracking-tight">AstraReach</h1>
+        </div>
+        <p class="text-brand-textMuted text-sm">Enterprise B2B Outreach CRM</p>
+    </div>
+
+    <!-- Card -->
+    <div class="bg-brand-sidebar border border-brand-border rounded-2xl p-8 shadow-2xl">
+        <h2 class="text-xl font-semibold mb-6">Sign in to your account</h2>
+
+        <form action="/login" method="POST" class="space-y-5">
+            <div>
+                <label class="block text-xs font-medium text-brand-textMuted uppercase tracking-wide mb-1.5">Email Address</label>
+                <div class="relative">
+                    <i class="fa-regular fa-envelope absolute left-3.5 top-1/2 -translate-y-1/2 text-brand-textMuted text-sm"></i>
+                    <input type="email" name="email" required autofocus
+                        placeholder="you@company.com"
+                        class="w-full bg-btnSecondary border border-btnBorder rounded-xl py-3 pl-10 pr-4 text-sm focus:outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 transition-all">
+                </div>
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-brand-textMuted uppercase tracking-wide mb-1.5">Password</label>
+                <div class="relative">
+                    <i class="fa-solid fa-lock absolute left-3.5 top-1/2 -translate-y-1/2 text-brand-textMuted text-sm"></i>
+                    <input type="password" name="password" required id="password-input"
+                        placeholder="••••••••"
+                        class="w-full bg-btnSecondary border border-btnBorder rounded-xl py-3 pl-10 pr-11 text-sm focus:outline-none focus:border-brand-primary focus:ring-2 focus:ring-brand-primary/20 transition-all">
+                    <button type="button" id="toggle-pwd" class="absolute right-3.5 top-1/2 -translate-y-1/2 text-brand-textMuted hover:text-white transition-colors">
+                        <i class="fa-regular fa-eye text-sm" id="pwd-icon"></i>
+                    </button>
+                </div>
+            </div>
+            <button type="submit" class="w-full py-3 bg-brand-primary text-white font-semibold rounded-xl hover:opacity-90 transition-all text-sm flex items-center justify-center gap-2">
+                <i class="fa-solid fa-right-to-bracket"></i>
+                Sign In
+            </button>
+        </form>
+    </div>
+
+    <p class="text-center text-xs text-brand-textMuted mt-6">
+        AstraReach &copy; <%= new Date().getFullYear() %> · AstraByte Solutions
+    </p>
+</div>
+
+<div id="toast-container"></div>
+<script>
+/* ── Toast helper (self-contained for login page) ── */
+(function(){
+    const ICONS  = { success:'<i class="fa-solid fa-circle-check"></i>', error:'<i class="fa-solid fa-circle-xmark"></i>', warning:'<i class="fa-solid fa-triangle-exclamation"></i>', info:'<i class="fa-solid fa-circle-info"></i>' };
+    const TITLES = { success:'Success', error:'Invalid Credentials', warning:'Warning', info:'Info' };
+    const DURATION = { success:4000, error:6000, warning:5000, info:4000 };
+    window.showToast = function(message, type, title){
+        type = type || 'info';
+        if (!message) return;
+        const container = document.getElementById('toast-container');
+        const duration  = DURATION[type] || 4000;
+        const t = document.createElement('div');
+        t.className = 'toast ' + type;
+        t.innerHTML = `<div class="toast-icon">${ICONS[type]||ICONS.info}</div><div class="toast-body"><div class="toast-title">${title||TITLES[type]||'Notice'}</div>${message!=(title||TITLES[type])?`<div class="toast-msg">${message}</div>`:''}</div><button class="toast-close" onclick="this.closest('.toast')._dismiss()">&#x2715;</button><div class="toast-progress" style="width:100%"></div>`;
+        const bar = t.querySelector('.toast-progress');
+        t._dismiss = function(){ t.classList.add('hiding'); setTimeout(()=>t.remove(),220); };
+        container.appendChild(t);
+        requestAnimationFrame(()=>{ bar.style.transitionDuration=duration+'ms'; bar.style.width='0%'; });
+        setTimeout(()=>t._dismiss(), duration);
+    };
+})();
+
+/* ── Fire flash messages as toasts ── */
+(function(){
+    const errors   = <%- JSON.stringify(typeof messages !== 'undefined' && messages.error   ? messages.error   : []) %>;
+    const successes= <%- JSON.stringify(typeof messages !== 'undefined' && messages.success ? messages.success : []) %>;
+    document.addEventListener('DOMContentLoaded', function(){
+        errors.forEach(m => m && window.showToast(m, 'error'));
+        successes.forEach(m => m && window.showToast(m, 'success'));
+    });
+})();
+
+/* ── Password toggle ── */
+const toggleBtn = document.getElementById('toggle-pwd');
+const pwdInput  = document.getElementById('password-input');
+const pwdIcon   = document.getElementById('pwd-icon');
+if (toggleBtn) {
+    toggleBtn.addEventListener('click', () => {
+        const isHidden = pwdInput.type === 'password';
+        pwdInput.type = isHidden ? 'text' : 'password';
+        pwdIcon.className = isHidden ? 'fa-regular fa-eye-slash text-sm' : 'fa-regular fa-eye text-sm';
+    });
+}
+
+/* ── Loading state on submit ── */
+document.querySelector('form').addEventListener('submit', function(){
+    const btn = this.querySelector('button[type="submit"]');
+    if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Signing in…'; }
+});
+</script>
+</body>
+</html>

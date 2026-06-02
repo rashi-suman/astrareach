@@ -1,0 +1,17 @@
+<div class="flex items-center gap-0">
+<% [['1','Details'],['2','Template'],['3','Audience'],['4','Launch']].forEach(([n,label], i) => {
+   const active = parseInt(step) === parseInt(n);
+   const done   = parseInt(step) > parseInt(n);
+%>
+  <div class="flex items-center gap-0 flex-1">
+    <div class="flex items-center gap-2">
+      <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold shrink-0
+        <%= done ? 'bg-green-500 text-white' : active ? 'bg-brand-primary text-white' : 'bg-brand-border text-brand-textMuted' %>">
+        <%= done ? '✓' : n %>
+      </div>
+      <span class="text-xs font-medium <%= active ? 'text-white' : done ? 'text-green-400' : 'text-brand-textMuted' %>"><%= label %></span>
+    </div>
+    <% if (i < 3) { %><div class="flex-1 h-px bg-brand-border mx-2"></div><% } %>
+  </div>
+<% }) %>
+</div>

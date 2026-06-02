@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<%- include('../../layout/_head', { title: 'WA Analytics' }) %>
+<body class="bg-brand-dark text-gray-100 font-sans antialiased">
+<%- include('../../layout/_sidebar', { page: 'whatsapp', user }) %>
+<div id="main-wrapper" class="flex flex-col min-h-screen">
+<%- include('../../layout/_header', { breadcrumbs, user }) %>
+<main class="flex-1 p-6 overflow-y-auto">
+
+<!-- Header -->
+<div class="flex items-center justify-between mb-6 flex-wrap gap-3">
+  <div>
+    <h1 class="text-2xl font-bold text-white">WhatsApp Analytics</h1>
+    <p class="text-xs text-brand-textMuted mt-1">Combined email + WhatsApp overview: <a href="/analytics" class="text-brand-primary hover:underline">Analytics</a></p>
+  </div>
+  <div class="flex gap-2">
+    <% [7,30,90].forEach(d => { %>
+    <a href="?days=<%= d %>" class="px-3 py-1.5 text-xs rounded-lg border <%= days==d ? 'bg-brand-primary border-brand-primary text-white' : 'bg-brand-card border-brand-border text-brand-textMuted hover:border-brand-primary/50' %>">Last <%= d %>d</a>
+    <% }) %>
+  </div>
+</div>
+
+<!-- Overview stats -->
+<div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+<% const overview_defs = [
+  ['sent','Total Sent','fa-paper-plane','text-blue-400'],
+  ['delivered','Delivered','fa-check-double','text-green-400'],
+  ['read','Read','fa-eye','text-purple-400'],
+  ['replied','Replied','fa-reply','text-brand-primary'],
+  ['opted_out','Opt-outs','fa-ban','text-red-400'],
+];
+overview_defs.forEach(([key,label,icon,color]) => {
+  const n = stats[key]||0;
+  const sent = stats.sent||1;
+%>
+<div class="bg-brand-card border border-brand-border rounded-xl p-5 text-center">
+  <i class="fa-solid <%= icon %> <%= color %> mb-2"></i>
+  <div class="text-2xl font-bold text-white"><%= n.toLocaleString() %></div>
+  <div class="text-xs text-brand-textMuted mt-1"><%= label %></div>
+  <% if (!['sent'].includes(key) && n > 0) { %>
+  <div class="text-[11px] text-brand-textMuted/70 mt-0.5"><%= Math.round(n/sent*100) %>%</div>
+  <% } %>
+</div>
+<% }) %>
+</div>
+
+<!-- Daily volume chart -->
+<div class="bg-brand-card border border-brand-border rounded-xl p-5 mb-5">
+  <h3 class="font-semibold mb-4">Daily Volume</h3>
+  <canvas id="daily-chart" height="90"></canvas>
+</div>
+
+<!-- Opt-out trend -->
+<div class="grid grid-cols-1 xl:grid-cols-2 gap-5 mb-5">
+  <div class="bg-brand-card border border-brand-border rounded-xl p-5">
+    <h3 class="font-semibold mb-4">Opt-out Trend</h3>
+    <canvas id="optout-chart" height="120"></canvas>
+  </div>
+  <!-- Campaign table -->
+  <div class="bg-brand-card border border-brand-border rounded-xl overflow-hidden">
+    <div class="p-5 border-b border-brand-border"><h3 class="font-semibold">Campaign Performance</h3></div>
+    <div class="overflow-x-auto">
+      <table class="w-full text-xs">
+        <thead class="bg-brand-sidebar/30 text-[10px] uppercase tracking-wider text-brand-textMuted">
+          <tr>
+            <th class="px-4 py-2.5 text-left">Campaign</th>
+            <th class="px-3 py-2.5 text-center">Sent</th>
+            <th class="px-3 py-2.5 text-center">Del%</th>
+            <th class="px-3 py-2.5 text-center">Read%</th>
+            <th class="px-3 py-2.5 text-center">Reply%</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-brand-border/40">
+        <% campaigns.forEach(c => {
+          const s = parseInt(c.messages_sent)||1;
+          const delPct  = Math.round((parseInt(c.delivered)||0)/s*100);
+          const readPct = Math.round((parseInt(c.read_count)||0)/s*100);
+          const repPct  = Math.round((parseInt(c.replied)||0)/s*100);
+        %>
+        <tr class="hover:bg-brand-sidebar/20">
+          <td class="px-4 py-2.5">
+            <a href="/whatsapp/campaigns/<%= c.id %>" class="text-white hover:text-brand-primary font-medium"><%= c.name %></a>
+            <span class="ml-2 px-1 py-0.5 rounded text-[10px] font-semibold
+              <%= c.status==='active'?'text-green-400 bg-green-400/10':'text-brand-textMuted bg-brand-border/40' %>"><%= c.status %></span>
+          </td>
+          <td class="px-3 py-2.5 text-center"><%= (c.messages_sent||0).toLocaleString() %></td>
+          <td class="px-3 py-2.5 text-center <%= delPct>70?'text-green-400':'' %>"><%= delPct %>%</td>
+          <td class="px-3 py-2.5 text-center <%= readPct>40?'text-purple-400':'' %>"><%= readPct %>%</td>
+          <td class="px-3 py-2.5 text-center <%= repPct>5?'text-brand-primary':'' %>"><%= repPct %>%</td>
+        </tr>
+        <% }) %>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+</main>
+</div>
+<div id="toast-container"></div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4/dist/chart.umd.min.js"></script>
+<script>
+const DAILY = <%- JSON.stringify(daily) %>;
+const OPTOUT = <%- JSON.stringify(optoutTrend) %>;
+
+// Build date labels
+const dateSet = new Set(DAILY.map(d => d.date));
+const dates   = [...dateSet].sort();
+
+const eventTypes = ['sent','delivered','read','replied'];
+const colors     = { sent:'#60a5fa',delivered:'#4ade80',read:'#c084fc',replied:'#623CEA' };
+
+const datasets = eventTypes.map(et => ({
+  label:           et.charAt(0).toUpperCase() + et.slice(1),
+  data:            dates.map(d => { const r = DAILY.find(x=>x.date===d&&x.event_type===et); return r?parseInt(r.cnt):0; }),
+  borderColor:     colors[et],
+  backgroundColor: colors[et]+'30',
+  fill:            true, tension: 0.3, borderWidth: 1.5,
+}));
+
+new Chart(document.getElementById('daily-chart'), {
+  type: 'line',
+  data: { labels: dates, datasets },
+  options: {
+    responsive:true, interaction:{ mode:'index', intersect:false },
+    plugins:{ legend:{ labels:{ color:'#8b93a7', font:{ size:11 } } } },
+    scales:{
+      x:{ ticks:{ color:'#8b93a7', maxTicksLimit:10 }, grid:{ color:'#2a3347' } },
+      y:{ ticks:{ color:'#8b93a7' }, grid:{ color:'#2a3347' }, beginAtZero:true },
+    },
+  },
+});
+
+const optDates = OPTOUT.map(d=>d.date);
+const optCnts  = OPTOUT.map(d=>parseInt(d.cnt));
+new Chart(document.getElementById('optout-chart'), {
+  type: 'bar',
+  data: { labels: optDates, datasets:[{ label:'Opt-outs', data: optCnts, backgroundColor:'#ef444460', borderColor:'#ef4444', borderWidth:1.5 }] },
+  options: {
+    responsive:true,
+    plugins:{ legend:{ labels:{ color:'#8b93a7', font:{size:11} } } },
+    scales:{
+      x:{ ticks:{ color:'#8b93a7', maxTicksLimit:10 }, grid:{ color:'#2a3347' } },
+      y:{ ticks:{ color:'#8b93a7' }, grid:{ color:'#2a3347' }, beginAtZero:true },
+    },
+  },
+});
+</script>
+</body>
+</html>

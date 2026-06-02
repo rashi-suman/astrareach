@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="en">
+<%- include('../layout/_head', { title: contact.first_name + ' ' + (contact.last_name||'') }) %>
+<body class="bg-brand-dark text-gray-100 font-sans antialiased">
+<%- include('../layout/_sidebar', { page: 'contacts', user }) %>
+<div id="main-wrapper" class="flex flex-col min-h-screen">
+<%- include('../layout/_header', { breadcrumbs, user }) %>
+<main class="flex-1 overflow-y-auto p-6">
+<%
+const name     = [contact.first_name, contact.last_name].filter(Boolean).join(' ') || contact.email;
+const initials = name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+const statusColors = {
+  active:       'bg-green-500/10 text-green-400 border-green-500/20',
+  unsubscribed: 'bg-gray-500/10  text-gray-400  border-gray-500/20',
+  bounced:      'bg-red-500/10   text-red-400   border-red-500/20',
+  invalid:      'bg-orange-500/10 text-orange-400 border-orange-500/20',
+};
+const statusCls = statusColors[contact.status] || 'bg-gray-500/10 text-gray-400 border-gray-500/20';
+%>
+
+<div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-10 gap-6">
+
+    <!-- ───── LEFT: Profile Card ───── -->
+    <aside class="lg:col-span-3 space-y-4">
+        <div class="bg-brand-card border border-brand-border rounded-xl p-6 lg:sticky lg:top-6">
+
+            <!-- Avatar + name -->
+            <div class="flex flex-col items-center text-center mb-5">
+                <div class="w-16 h-16 bg-brand-primary rounded-full flex items-center justify-center text-white text-2xl font-bold mb-3 shadow-lg shadow-brand-primary/20"><%= initials %></div>
+                <h1 class="text-lg font-semibold leading-tight"><%= name %></h1>
+                <% if (contact.job_title || contact.company) { %>
+                <p class="text-sm text-brand-textMuted mt-1">
+                    <%= contact.job_title || '' %><% if (contact.job_title && contact.company) { %> at <% } %><span class="text-brand-primary"><%= contact.company || '' %></span>
+                </p>
+                <% } %>
+                <span class="mt-3 px-3 py-1 text-[10px] font-bold rounded-full border uppercase tracking-wider <%= statusCls %>"><%= contact.status %></span>
+            </div>
+
+            <div class="border-t border-brand-border my-4"></div>
+
+            <!-- Contact fields -->
+            <div class="space-y-3">
+                <div>
+                    <span class="text-[11px] text-brand-textMuted uppercase tracking-wide block mb-0.5">Email</span>
+                    <div class="flex justify-between items-center group">
+                        <a href="mailto:<%= contact.email %>" class="text-sm hover:text-brand-primary truncate"><%= contact.email %></a>
+                        <button onclick="navigator.clipboard.writeText('<%= contact.email %>');this.innerHTML='<i class=\'fa-solid fa-check text-green-400 text-xs\'></i>';setTimeout(()=>this.innerHTML='<i class=\'fa-regular fa-copy text-xs\'></i>',1500)"
+                            class="ml-2 text-brand-textMuted opacity-0 group-hover:opacity-100 hover:text-white transition-opacity shrink-0">
+                            <i class="fa-regular fa-copy text-xs"></i>
+                        </button>
+                    </div>
+                </div>
+                <% if (contact.phone) { %>
+                <div>
+                    <span class="text-[11px] text-brand-textMuted uppercase tracking-wide block mb-0.5">Phone</span>
+                    <span class="text-sm"><%= contact.phone %></span>
+                </div>
+                <% } %>
+                <% if (contact.website) { %>
+                <div>
+                    <span class="text-[11px] text-brand-textMuted uppercase tracking-wide block mb-0.5">Website</span>
+                    <a href="<%= contact.website %>" target="_blank" rel="noopener" class="text-sm flex items-center gap-1 hover:text-brand-primary transition-colors truncate">
+                        <%= contact.website.replace(/^https?:\/\//,'') %>&nbsp;<i class="fa-solid fa-arrow-up-right-from-square text-[9px] shrink-0"></i>
+                    </a>
+                </div>
+                <% } %>
+                <% if (contact.industry) { %>
+                <div>
+                    <span class="text-[11px] text-brand-textMuted uppercase tracking-wide block mb-0.5">Industry</span>
+                    <span class="text-sm"><%= contact.industry %></span>
+                </div>
+                <% } %>
+                <% if (contact.country) { %>
+                <div>
+                    <span class="text-[11px] text-brand-textMuted uppercase tracking-wide block mb-0.5">Country</span>
+                    <span class="text-sm"><%= contact.country %></span>
+                </div>
+                <% } %>
+                <% if (contact.city) { %>
+                <div>
+                    <span class="text-[11px] text-brand-textMuted uppercase tracking-wide block mb-0.5">City</span>
+                    <span class="text-sm"><%= contact.city %></span>
+                </div>
+                <% } %>
+                <% if (contact.linkedin_url) { %>
+                <div>
+                    <span class="text-[11px] text-brand-textMuted uppercase tracking-wide block mb-0.5">LinkedIn</span>
+                    <a href="<%= contact.linkedin_url %>" target="_blank" rel="noopener" class="text-sm text-brand-primary hover:underline truncate block">
+                        <%= contact.linkedin_url.replace(/^https?:\/\/(www\.)?linkedin\.com/,'') %>
+                    </a>
+                </div>
+                <% } %>
+                <% if (contact.revenue_range) { %>
+                <div>
+                    <span class="text-[11px] text-brand-textMuted uppercase tracking-wide block mb-0.5">Revenue</span>
+                    <span class="text-sm"><%= contact.revenue_range %></span>
+                </div>
+                <% } %>
+                <% if (contact.employee_count) { %>
+                <div>
+                    <span class="text-[11px] text-brand-textMuted uppercase tracking-wide block mb-0.5">Employees</span>
+                    <span class="text-sm"><%= contact.employee_count %></span>
+                </div>
+                <% } %>
+                <% if (contact.tags && contact.tags.length > 0) { %>
+                <div>
+                    <span class="text-[11px] text-brand-textMuted uppercase tracking-wide block mb-1.5">Tags</span>
+                    <div class="flex flex-wrap gap-1.5">
+                        <% contact.tags.forEach(tag => { %>
+                        <span class="px-2 py-0.5 bg-brand-primary/10 text-brand-primary text-[11px] rounded-full border border-brand-primary/20"><%= tag %></span>
+                        <% }) %>
+                    </div>
+                </div>
+                <% } %>
+            </div>
+
+            <div class="border-t border-brand-border pt-4 mt-2">
+                <p class="text-[11px] text-brand-textMuted uppercase tracking-wide mb-2 flex items-center gap-2">
+                    <i class="fa-brands fa-whatsapp text-green-400"></i> WhatsApp
+                </p>
+                <% const waDisplay = ((contact.whatsapp_phone && String(contact.whatsapp_phone).trim()) || (contact.phone && String(contact.phone).trim()) || ''); %>
+                <% if (waDisplay) { %>
+                <p class="text-sm font-mono text-white/90"><%= waDisplay %></p>
+                <% if (!((contact.whatsapp_phone && String(contact.whatsapp_phone).trim()))) { %>
+                <p class="text-[10px] text-amber-400/90 mt-1">Using your main <strong class="font-medium">Phone</strong> field. Add a dedicated <strong class="font-medium">WhatsApp number</strong> on Edit if it should differ.</p>
+                <% } %>
+                <p class="text-xs mt-1 <%= contact.whatsapp_opted_in ? 'text-green-400' : 'text-brand-textMuted' %>">
+                    <%= contact.whatsapp_opted_in ? 'Marked opted-in on contact' : 'Not marked opted-in yet' %>
+                </p>
+                <div class="flex flex-col gap-2 mt-3">
+                    <button type="button" onclick="waOptInDetail()" class="w-full py-2 text-xs font-semibold rounded-lg bg-green-600/90 text-white hover:bg-green-600 border border-green-500/30">Record WhatsApp opt-in</button>
+                    <button type="button" onclick="waOptOutDetail()" class="w-full py-2 text-xs rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10">Record WhatsApp opt-out</button>
+                </div>
+                <% } else { %>
+                <p class="text-xs text-brand-textMuted">No WhatsApp number on this contact.</p>
+                <a href="/contacts/<%= contact.id %>/edit" class="inline-block mt-2 text-xs text-brand-primary hover:underline">Add WhatsApp number →</a>
+                <% } %>
+            </div>
+
+            <div class="border-t border-brand-border my-4"></div>
+
+            <!-- Action buttons -->
+            <div class="space-y-2">
+                <button onclick="openAddToCampaign()" class="w-full py-2.5 bg-brand-primary hover:bg-blue-500 text-white text-sm font-semibold rounded-lg transition-all flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-paper-plane text-xs"></i>Add to Campaign
+                </button>
+                <a href="/contacts/<%= contact.id %>/edit" class="w-full flex items-center justify-center py-2.5 bg-btnSecondary border border-btnBorder hover:bg-brand-border text-sm font-medium rounded-lg transition-all">
+                    <i class="fa-solid fa-pen mr-2 text-xs"></i>Edit Contact
+                </a>
+                <% if (user && user.role !== 'editor' && user.role !== 'lead_manager' && user.role !== 'campaign_manager') { %>
+                <form action="/contacts/<%= contact.id %>" method="POST">
+                    <input type="hidden" name="_method" value="DELETE">
+                    <button type="submit" onclick="return confirm('Delete this contact? This cannot be undone.')"
+                        class="w-full py-2.5 text-brand-textMuted hover:text-red-400 text-sm font-medium rounded-lg transition-all flex items-center justify-center gap-2">
+                        <i class="fa-solid fa-trash text-xs"></i>Delete Contact
+                    </button>
+                </form>
+                <% } %>
+            </div>
+
+            <!-- Meta -->
+            <div class="mt-4 pt-4 border-t border-brand-border space-y-1.5 text-[11px] text-brand-textMuted">
+                <div class="flex justify-between">
+                    <span>Added</span>
+                    <span><%= new Date(contact.created_at).toLocaleDateString('en-IN', {day:'2-digit',month:'short',year:'numeric'}) %></span>
+                </div>
+                <% if (contact.source) { %>
+                <div class="flex justify-between">
+                    <span>Source</span>
+                    <span class="truncate max-w-[140px] text-right"><%= contact.source.replace(/\.[^/.]+$/, '') %></span>
+                </div>
+                <% } %>
+            </div>
+        </div>
+    </aside>
+
+    <!-- ───── RIGHT: Tabs ───── -->
+    <div class="lg:col-span-7 space-y-4">
+
+        <!-- Tabs -->
+        <div class="border-b border-brand-border flex gap-6 overflow-x-auto">
+            <button class="pb-3 text-sm font-medium tab-btn tab-active whitespace-nowrap" data-tab="overview">
+                <i class="fa-solid fa-chart-simple mr-1.5 text-xs"></i>Overview
+            </button>
+            <button class="pb-3 text-sm font-medium text-brand-textMuted hover:text-white tab-btn transition-all whitespace-nowrap" data-tab="email-history">
+                <i class="fa-solid fa-envelope mr-1.5 text-xs"></i>Email History
+                <% if (events && events.length > 0) { %><span class="ml-1.5 px-1.5 py-0.5 bg-brand-primary/20 text-brand-primary text-[10px] rounded-full"><%= events.length %></span><% } %>
+            </button>
+            <button class="pb-3 text-sm font-medium text-brand-textMuted hover:text-white tab-btn transition-all whitespace-nowrap" data-tab="events">
+                <i class="fa-solid fa-timeline mr-1.5 text-xs"></i>Activity Timeline
+            </button>
+            <button class="pb-3 text-sm font-medium text-brand-textMuted hover:text-white tab-btn transition-all whitespace-nowrap" data-tab="enrichment">
+                <i class="fa-solid fa-wand-magic-sparkles mr-1.5 text-xs"></i>AI Enrichment
+                <% if (enrichment && enrichment.enrichment_status === 'completed') { %>
+                <span class="ml-1.5 px-1.5 py-0.5 bg-purple-500/20 text-purple-400 text-[10px] rounded-full"><%= Object.keys(enrichment.field_confidence || {}).length %> fields</span>
+                <% } %>
+            </button>
+        </div>
+
+        <!-- ── Overview Tab ── -->
+        <div id="tab-overview" class="space-y-4 tab-panel">
+
+            <!-- Campaign stats summary -->
+            <% const sentCount = (history||[]).filter(h=>['sent','delivered','opened','clicked','booked'].includes(h.status)).length;
+               const openedCount = (history||[]).filter(h=>['opened','clicked','booked'].includes(h.status)).length;
+               const clickedCount = (history||[]).filter(h=>['clicked','booked'].includes(h.status)).length;
+            %>
+            <div class="grid grid-cols-3 gap-3">
+                <div class="bg-brand-card border border-brand-border rounded-xl p-4 text-center">
+                    <p class="text-2xl font-bold text-white"><%= (history||[]).length %></p>
+                    <p class="text-xs text-brand-textMuted mt-1">Campaigns</p>
+                </div>
+                <div class="bg-brand-card border border-brand-border rounded-xl p-4 text-center">
+                    <p class="text-2xl font-bold text-brand-primary"><%= sentCount %></p>
+                    <p class="text-xs text-brand-textMuted mt-1">Emails Sent</p>
+                </div>
+                <div class="bg-brand-card border border-brand-border rounded-xl p-4 text-center">
+                    <p class="text-2xl font-bold text-green-400"><%= openedCount %></p>
+                    <p class="text-xs text-brand-textMuted mt-1">Opens</p>
+                </div>
+            </div>
+
+            <!-- Campaign History -->
+            <div class="bg-brand-card border border-brand-border rounded-xl overflow-hidden">
+                <div class="px-5 py-4 border-b border-brand-border flex items-center justify-between">
+                    <h3 class="font-semibold text-sm">Campaign History</h3>
+                    <% if (history && history.length > 0) { %>
+                    <span class="text-[11px] text-brand-textMuted"><%= history.length %> campaign<%= history.length > 1 ? 's' : '' %></span>
+                    <% } %>
+                </div>
+                <% if (!history || history.length === 0) { %>
+                <div class="p-8 text-center text-sm text-brand-textMuted">
+                    <i class="fa-solid fa-paper-plane text-3xl opacity-20 block mb-3"></i>
+                    Not part of any campaigns yet.<br>
+                    <button onclick="openAddToCampaign()" class="mt-3 text-brand-primary hover:underline text-xs font-medium">Add to a campaign</button>
+                </div>
+                <% } else { %>
+                <div class="divide-y divide-brand-border/40">
+                    <% history.forEach(ch => {
+                        const hCls = ch.status === 'clicked' || ch.status === 'booked'
+                          ? 'bg-green-500/10 text-green-400 border-green-500/20'
+                          : ch.status === 'opened'
+                          ? 'bg-brand-primary/10 text-brand-primary border-brand-primary/20'
+                          : ch.status === 'bounced' || ch.status === 'failed'
+                          ? 'bg-red-500/10 text-red-400 border-red-500/20'
+                          : ch.status === 'sent' || ch.status === 'delivered'
+                          ? 'bg-blue-500/10 text-blue-400 border-blue-500/20'
+                          : 'bg-brand-border/30 text-brand-textMuted border-brand-border/20';
+                    %>
+                    <div class="px-5 py-3.5 flex items-center justify-between hover:bg-white/5 transition-colors">
+                        <div>
+                            <a href="/campaigns/<%= ch.campaign_id %>" class="text-sm font-medium hover:text-brand-primary"><%= ch.campaign_name %></a>
+                            <p class="text-xs text-brand-textMuted mt-0.5">
+                                <%= ch.sent_at ? 'Sent ' + new Date(ch.sent_at).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : 'Pending' %>
+                            </p>
+                        </div>
+                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold border capitalize <%= hCls %>"><%= ch.status %></span>
+                    </div>
+                    <% }) %>
+                </div>
+                <% } %>
+            </div>
+
+            <!-- Similar Contacts -->
+            <% if (similar && similar.length > 0) { %>
+            <div class="bg-brand-card border border-brand-border rounded-xl overflow-hidden">
+                <div class="px-5 py-4 border-b border-brand-border">
+                    <h3 class="font-semibold text-sm">From the same company (<%= contact.company %>)</h3>
+                </div>
+                <div class="divide-y divide-brand-border/40">
+                    <% similar.forEach(s => {
+                        const sName = [s.first_name, s.last_name].filter(Boolean).join(' ') || s.email;
+                        const sInit = sName.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+                    %>
+                    <div class="px-5 py-3 flex items-center gap-3 hover:bg-white/5 transition-colors">
+                        <div class="w-8 h-8 rounded-full bg-brand-primary/20 flex items-center justify-center text-xs font-bold text-brand-primary shrink-0"><%= sInit %></div>
+                        <div class="min-w-0">
+                            <a href="/contacts/<%= s.id %>" class="text-sm font-medium hover:text-brand-primary block truncate"><%= sName %></a>
+                            <p class="text-[11px] text-brand-textMuted truncate"><%= s.email %></p>
+                        </div>
+                    </div>
+                    <% }) %>
+                </div>
+            </div>
+            <% } %>
+
+            <!-- Custom Fields -->
+            <div class="bg-brand-card border border-brand-border rounded-xl p-5" id="custom-fields-card">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="font-semibold text-sm">Custom Fields</h3>
+                    <button id="cf-edit-btn" onclick="openCustomFieldsEditor()"
+                        class="inline-flex items-center gap-1.5 px-3 py-1.5 bg-btnSecondary border border-btnBorder rounded-md text-xs font-medium hover:bg-brand-border/50 transition-all">
+                        <i class="fa-solid fa-pen text-[10px]"></i>Edit
+                    </button>
+                </div>
+
+                <!-- View Mode -->
+                <div id="cf-view">
+                    <% const cfEntries = contact.custom_fields ? Object.entries(contact.custom_fields) : []; %>
+                    <% if (cfEntries.length === 0) { %>
+                    <p class="text-xs text-brand-textMuted/60 italic">No custom fields yet. Click Edit to add some.</p>
+                    <% } else { %>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3" id="cf-display-grid">
+                        <% cfEntries.forEach(([k, v]) => { %>
+                        <div class="flex justify-between items-center border-b border-brand-border/40 pb-2">
+                            <span class="text-xs text-brand-textMuted"><%= k.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase()) %></span>
+                            <span class="text-sm font-medium truncate ml-3"><%= v %></span>
+                        </div>
+                        <% }) %>
+                    </div>
+                    <% } %>
+                </div>
+
+                <!-- Edit Mode (hidden by default) -->
+                <div id="cf-editor" class="hidden">
+                    <div id="cf-rows" class="space-y-2 mb-3">
+                        <% cfEntries.forEach(([k, v]) => { %>
+                        <div class="cf-row flex items-center gap-2">
+                            <input type="text" placeholder="Field name" value="<%= k %>"
+                                class="cf-key flex-1 bg-brand-sidebar border border-brand-border rounded-md px-3 py-1.5 text-xs focus:outline-none focus:border-brand-primary transition-all">
+                            <input type="text" placeholder="Value" value="<%= v %>"
+                                class="cf-val flex-1 bg-brand-sidebar border border-brand-border rounded-md px-3 py-1.5 text-xs focus:outline-none focus:border-brand-primary transition-all">
+                            <button type="button" onclick="removeCfRow(this)"
+                                class="p-1.5 text-brand-textMuted hover:text-red-400 transition-colors shrink-0" title="Remove">
+                                <i class="fa-solid fa-xmark text-xs"></i>
+                            </button>
+                        </div>
+                        <% }) %>
+                    </div>
+                    <button type="button" onclick="addCfRow()"
+                        class="inline-flex items-center gap-1.5 text-xs text-brand-primary hover:underline mb-4">
+                        <i class="fa-solid fa-plus text-[10px]"></i>Add Field
+                    </button>
+                    <div class="flex items-center gap-2">
+                        <button type="button" onclick="saveCustomFields()"
+                            class="px-4 py-1.5 bg-brand-primary text-white rounded-md text-xs font-medium hover:opacity-90 transition-all flex items-center gap-1.5" id="cf-save-btn">
+                            <i class="fa-solid fa-check text-[10px]"></i>Save
+                        </button>
+                        <button type="button" onclick="cancelCustomFields()"
+                            class="px-4 py-1.5 bg-btnSecondary border border-btnBorder rounded-md text-xs font-medium hover:bg-brand-border/50 transition-all">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ── Email History Tab ── -->
+        <div id="tab-email-history" class="tab-panel hidden">
+            <div class="bg-brand-card border border-brand-border rounded-xl overflow-hidden">
+                <div class="px-5 py-4 border-b border-brand-border flex items-center justify-between">
+                    <h3 class="font-semibold text-sm">Email History</h3>
+                    <span class="text-[11px] text-brand-textMuted">Total: <%= (events||[]).length %></span>
+                </div>
+                <% if (!events || events.length === 0) { %>
+                <div class="p-8 text-center text-sm text-brand-textMuted">
+                    <i class="fa-solid fa-envelope-open-text text-3xl opacity-20 block mb-3"></i>
+                    No emails sent yet
+                </div>
+                <% } else { %>
+                <div class="divide-y divide-brand-border/40">
+                    <% events.forEach(ev => {
+                        const evCls =
+                            ev.event_type === 'clicked' || ev.event_type === 'booked' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
+                            ev.event_type === 'opened'    ? 'bg-brand-primary/10 text-brand-primary border-brand-primary/20' :
+                            ev.event_type === 'delivered' ? 'bg-blue-500/10 text-blue-400 border-blue-500/20' :
+                            ev.event_type === 'bounced'   ? 'bg-red-500/10 text-red-400 border-red-500/20' :
+                            ev.event_type === 'sent'      ? 'bg-gray-500/10 text-gray-400 border-gray-500/20' :
+                            'bg-brand-border/30 text-brand-textMuted border-brand-border/20';
+                        const evIcon =
+                            ev.event_type === 'clicked' ? 'fa-mouse-pointer' :
+                            ev.event_type === 'opened'  ? 'fa-envelope-open' :
+                            ev.event_type === 'delivered' ? 'fa-inbox' :
+                            ev.event_type === 'bounced' ? 'fa-circle-exclamation' :
+                            'fa-paper-plane';
+                    %>
+                    <div class="px-5 py-3.5 flex items-center justify-between hover:bg-white/5 transition-colors">
+                        <div class="flex items-center gap-3">
+                            <div class="w-7 h-7 rounded-full <%= evCls.split(' ').slice(0,1).join(' ') %> flex items-center justify-center shrink-0">
+                                <i class="fa-solid <%= evIcon %> text-[11px] <%= evCls.split(' ').slice(1,2).join(' ') %>"></i>
+                            </div>
+                            <div>
+                                <p class="text-sm font-medium capitalize">
+                                    <%= ev.event_type === 'sent' ? 'Sent' : ev.event_type === 'delivered' ? 'Delivered' : ev.event_type === 'opened' ? 'Opened' : ev.event_type === 'clicked' ? 'Link Clicked' : ev.event_type === 'bounced' ? 'Bounced' : ev.event_type %> — <%= ev.campaign_name || 'Campaign' %>
+                                </p>
+                                <p class="text-[11px] text-brand-textMuted mt-0.5"><%= new Date(ev.created_at).toLocaleString('en-IN', {day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) %></p>
+                            </div>
+                        </div>
+                        <span class="px-2.5 py-0.5 rounded-full text-[10px] font-bold border capitalize shrink-0 <%= evCls %>"><%= ev.event_type %></span>
+                    </div>
+                    <% }) %>
+                </div>
+                <% } %>
+            </div>
+        </div>
+
+        <!-- ── Activity Timeline Tab ── -->
+        <div id="tab-events" class="tab-panel hidden">
+            <div class="bg-brand-card border border-brand-border rounded-xl p-6">
+                <h3 class="font-semibold text-sm mb-6">Activity Timeline</h3>
+                <% if (!events || events.length === 0) { %>
+                <div class="text-center py-8 text-sm text-brand-textMuted">
+                    <i class="fa-solid fa-timeline text-3xl opacity-20 block mb-3"></i>No activity yet
+                </div>
+                <% } else { %>
+                <div class="relative pl-7">
+                    <div class="absolute left-[9px] top-2 bottom-2 w-[2px] bg-brand-border/60 rounded-full"></div>
+                    <% events.forEach((ev, idx) => {
+                        const dotColor =
+                            ev.event_type === 'clicked' || ev.event_type === 'booked' ? 'bg-green-500' :
+                            ev.event_type === 'opened'    ? 'bg-brand-primary' :
+                            ev.event_type === 'delivered' ? 'bg-blue-500' :
+                            ev.event_type === 'bounced'   ? 'bg-red-500' :
+                            ev.event_type === 'sent'      ? 'bg-gray-500' : 'bg-gray-600';
+                        const evLabel =
+                            ev.event_type === 'clicked' ? 'Clicked a link in email' :
+                            ev.event_type === 'booked'  ? 'Booked a call' :
+                            ev.event_type === 'opened'  ? 'Opened email' :
+                            ev.event_type === 'delivered' ? 'Email delivered' :
+                            ev.event_type === 'bounced' ? 'Email bounced' :
+                            ev.event_type === 'sent'    ? 'Email sent' : ev.event_type;
+                        const d = new Date(ev.created_at);
+                        const diff = Date.now() - d.getTime();
+                        const hrs = Math.floor(diff / 3600000);
+                        const timeStr = hrs < 24
+                            ? 'Today, ' + d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})
+                            : hrs < 48
+                            ? 'Yesterday, ' + d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'})
+                            : d.toLocaleDateString('en-IN',{day:'2-digit',month:'short'}) + ', ' + d.toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+                    %>
+                    <div class="relative mb-6 <%= idx === events.length-1 ? '' : '' %>">
+                        <div class="absolute -left-[26px] top-1 w-3.5 h-3.5 rounded-full <%= dotColor %> ring-2 ring-brand-dark"></div>
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <p class="text-sm font-medium"><%= evLabel %></p>
+                                <% if (ev.campaign_name) { %>
+                                <p class="text-[11px] text-brand-textMuted mt-0.5">via "<%= ev.campaign_name %>"</p>
+                                <% } %>
+                            </div>
+                            <span class="text-[11px] text-brand-textMuted shrink-0 ml-4 whitespace-nowrap"><%= timeStr %></span>
+                        </div>
+                    </div>
+                    <% }) %>
+                </div>
+                <% } %>
+            </div>
+        </div>
+
+        <!-- ── AI Enrichment Tab ── -->
+        <div id="tab-enrichment" class="tab-panel hidden">
+            <%- include('./detail-enrichment-section', { contact, enrichment, fieldMeta }) %>
+        </div>
+    </div>
+</div>
+
+<!-- ── Add to Campaign Modal ── -->
+<div id="add-campaign-modal" class="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 hidden items-center justify-center p-4">
+    <div class="bg-brand-card border border-brand-border rounded-2xl w-full max-w-md shadow-2xl">
+        <div class="p-5 border-b border-brand-border flex items-center justify-between">
+            <h3 class="font-semibold">Add to Campaign</h3>
+            <button onclick="closeAddToCampaign()" class="text-brand-textMuted hover:text-white transition-colors"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div class="p-5 space-y-4">
+            <div>
+                <label class="block text-xs font-medium text-brand-textMuted uppercase tracking-wide mb-1.5">Select Campaign</label>
+                <select id="campaign-select" class="w-full bg-btnSecondary border border-btnBorder rounded-lg py-2.5 px-3.5 text-sm focus:outline-none focus:border-brand-primary">
+                    <option value="">Loading...</option>
+                </select>
+            </div>
+            <div class="flex gap-3 pt-2">
+                <button onclick="closeAddToCampaign()" class="flex-1 py-2.5 bg-btnSecondary border border-btnBorder rounded-lg text-sm hover:bg-brand-border/50 transition-all">Cancel</button>
+                <button onclick="submitAddToCampaign()" class="flex-1 py-2.5 bg-brand-primary text-white rounded-lg text-sm font-semibold hover:bg-blue-500 transition-all">Add Contact</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+</main>
+</div>
+<div id="toast-container"></div>
+<style>
+.tab-active { color: #623CEA; border-bottom: 2px solid #623CEA; }
+</style>
+<script>
+(function(){
+    const btn=document.getElementById('sidebar-toggle');const sidebar=document.getElementById('sidebar');const wrapper=document.getElementById('main-wrapper');
+    if(btn)btn.addEventListener('click',()=>{sidebar.classList.toggle('collapsed');wrapper.style.marginLeft=sidebar.classList.contains('collapsed')?'60px':'240px';});
+
+    // Tab switching with URL hash persistence
+    function activateTab(tabName) {
+        document.querySelectorAll('.tab-btn').forEach(t => { t.classList.remove('tab-active'); t.classList.add('text-brand-textMuted'); });
+        document.querySelectorAll('.tab-panel').forEach(p => p.classList.add('hidden'));
+        const btn = document.querySelector('.tab-btn[data-tab="' + tabName + '"]');
+        const panel = document.getElementById('tab-' + tabName);
+        if (btn && panel) {
+            btn.classList.add('tab-active');
+            btn.classList.remove('text-brand-textMuted');
+            panel.classList.remove('hidden');
+        }
+    }
+
+    document.querySelectorAll('.tab-btn').forEach(tab => {
+        tab.addEventListener('click', () => {
+            activateTab(tab.dataset.tab);
+            history.replaceState(null, '', '#tab-' + tab.dataset.tab);
+        });
+    });
+
+    // Restore tab from URL hash on page load
+    const hash = window.location.hash;
+    if (hash && hash.startsWith('#tab-')) {
+        activateTab(hash.replace('#tab-', ''));
+    }
+})();
+
+// Add to campaign modal
+function openAddToCampaign() {
+    const modal = document.getElementById('add-campaign-modal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    const sel = document.getElementById('campaign-select');
+    sel.innerHTML = '<option value="">Loading campaigns...</option>';
+    fetch('/campaigns?format=json')
+        .then(r => {
+            if (!r.ok) throw new Error('Failed to load');
+            return r.json();
+        })
+        .then(data => {
+            const camps = data.campaigns || [];
+            if (!camps.length) {
+                sel.innerHTML = '<option value="">No active campaigns</option>';
+            } else {
+                sel.innerHTML = '<option value="">— Select a campaign —</option>' +
+                    camps.filter(c => ['draft','active','paused'].includes(c.status))
+                         .map(c => `<option value="${c.id}">${c.name} (${c.status})</option>`).join('');
+            }
+        })
+        .catch(() => {
+            sel.innerHTML = '<option value="">Failed to load campaigns</option>';
+        });
+}
+
+function closeAddToCampaign() {
+    const modal = document.getElementById('add-campaign-modal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+}
+
+function submitAddToCampaign() {
+    const campId = document.getElementById('campaign-select').value;
+    if (!campId) { window.toastError && toastError('Please select a campaign'); return; }
+    fetch('/contacts/bulk/assign-campaign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ campaign_id: campId, ids: ['<%= contact.id %>'] }),
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.error) { window.toastError && toastError(d.error); return; }
+        window.toastSuccess && toastSuccess('Contact added to campaign successfully');
+        closeAddToCampaign();
+    })
+    .catch(() => { window.toastError && toastError('Failed to add to campaign'); });
+}
+
+// Close modal on outside click
+document.getElementById('add-campaign-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeAddToCampaign();
+});
+
+// ── Custom Fields Editor ──────────────────────────────────────────────────────
+const CONTACT_ID = '<%= contact.id %>';
+
+function openCustomFieldsEditor() {
+    document.getElementById('cf-view').classList.add('hidden');
+    document.getElementById('cf-editor').classList.remove('hidden');
+    document.getElementById('cf-edit-btn').classList.add('hidden');
+}
+
+function cancelCustomFields() {
+    document.getElementById('cf-editor').classList.add('hidden');
+    document.getElementById('cf-view').classList.remove('hidden');
+    document.getElementById('cf-edit-btn').classList.remove('hidden');
+}
+
+function addCfRow(key, value) {
+    const rows = document.getElementById('cf-rows');
+    const div = document.createElement('div');
+    div.className = 'cf-row flex items-center gap-2';
+    div.innerHTML = `
+        <input type="text" placeholder="Field name" value="${key || ''}"
+            class="cf-key flex-1 bg-brand-sidebar border border-brand-border rounded-md px-3 py-1.5 text-xs focus:outline-none focus:border-brand-primary transition-all">
+        <input type="text" placeholder="Value" value="${value || ''}"
+            class="cf-val flex-1 bg-brand-sidebar border border-brand-border rounded-md px-3 py-1.5 text-xs focus:outline-none focus:border-brand-primary transition-all">
+        <button type="button" onclick="removeCfRow(this)"
+            class="p-1.5 text-brand-textMuted hover:text-red-400 transition-colors shrink-0" title="Remove">
+            <i class="fa-solid fa-xmark text-xs"></i>
+        </button>`;
+    rows.appendChild(div);
+    div.querySelector('.cf-key').focus();
+}
+
+function removeCfRow(btn) {
+    btn.closest('.cf-row').remove();
+}
+
+function saveCustomFields() {
+    const rows = document.querySelectorAll('#cf-rows .cf-row');
+    const fields = [];
+    rows.forEach(row => {
+        const k = row.querySelector('.cf-key').value.trim();
+        const v = row.querySelector('.cf-val').value.trim();
+        if (k) fields.push({ key: k, value: v });
+    });
+
+    const saveBtn = document.getElementById('cf-save-btn');
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin text-[10px]"></i> Saving…';
+
+    fetch('/contacts/' + CONTACT_ID + '/custom-fields', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fields }),
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.error) { window.toastError && toastError(d.error); return; }
+        // Update the display grid
+        const grid = document.getElementById('cf-display-grid');
+        const view = document.getElementById('cf-view');
+        const cf = d.custom_fields || {};
+        const entries = Object.entries(cf);
+        if (entries.length === 0) {
+            view.innerHTML = '<p class="text-xs text-brand-textMuted/60 italic">No custom fields yet. Click Edit to add some.</p>';
+        } else {
+            view.innerHTML = '<div class="grid grid-cols-1 sm:grid-cols-2 gap-3" id="cf-display-grid">' +
+                entries.map(([k, v]) => `
+                    <div class="flex justify-between items-center border-b border-brand-border/40 pb-2">
+                        <span class="text-xs text-brand-textMuted">${k.replace(/_/g,' ').replace(/\b\w/g,c=>c.toUpperCase())}</span>
+                        <span class="text-sm font-medium truncate ml-3">${v}</span>
+                    </div>`).join('') +
+                '</div>';
+        }
+        cancelCustomFields();
+        window.toastSuccess && toastSuccess('Custom fields saved');
+    })
+    .catch(() => { window.toastError && toastError('Failed to save custom fields'); })
+    .finally(() => {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="fa-solid fa-check text-[10px]"></i>Save';
+    });
+}
+
+async function waOptInDetail() {
+    const r = await fetch('/whatsapp/optins/' + CONTACT_ID + '/optin', { method: 'POST' });
+    const j = await r.json();
+    if (!r.ok || !j.ok) { window.toastError && toastError(j.error || 'Opt-in failed'); return; }
+    window.toastSuccess && toastSuccess('WhatsApp opt-in recorded');
+    setTimeout(() => location.reload(), 600);
+}
+async function waOptOutDetail() {
+    if (!confirm('Record WhatsApp opt-out for this contact?')) return;
+    const r = await fetch('/whatsapp/optins/' + CONTACT_ID + '/optout', { method: 'POST' });
+    const j = await r.json();
+    if (!r.ok || !j.ok) { window.toastError && toastError(j.error || 'Opt-out failed'); return; }
+    window.toastSuccess && toastSuccess('WhatsApp opt-out recorded');
+    setTimeout(() => location.reload(), 600);
+}
+</script>
+</body>
+</html>

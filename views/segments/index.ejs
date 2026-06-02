@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<%- include('../layout/_head', { title: 'Segments' }) %>
+<body class="bg-brand-dark text-gray-100 font-sans antialiased">
+<%- include('../layout/_sidebar', { page: 'segments', user }) %>
+<div id="main-wrapper" class="flex flex-col h-screen overflow-hidden">
+<%- include('../layout/_header', { breadcrumbs, user }) %>
+
+<div class="flex-1 flex flex-col overflow-hidden min-h-0">
+
+    <!-- Page Header -->
+    <div class="h-16 border-b border-brand-border flex items-center justify-between px-8 bg-brand-sidebar/50 backdrop-blur-md shrink-0">
+        <div class="flex items-center gap-4">
+            <h1 class="text-lg font-semibold">Segments</h1>
+            <span class="px-2.5 py-0.5 bg-btnSecondary text-brand-textMuted text-xs font-medium rounded-full border border-btnBorder"><%= total.toLocaleString() %> total</span>
+        </div>
+        <div class="flex items-center gap-2 shrink-0">
+            <button onclick="document.getElementById('ai-seg-modal').classList.remove('hidden')"
+                class="inline-flex items-center gap-2 px-4 py-2 bg-purple-600/20 border border-purple-500/40 text-purple-400 hover:bg-purple-600/30 rounded-lg text-sm font-semibold transition-all">
+                <i class="fa-solid fa-wand-magic-sparkles"></i>AI Segment
+            </button>
+            <a href="/segments/new" class="inline-flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-lg text-sm font-semibold hover:opacity-90 transition-all shadow-lg shadow-brand-primary/10">
+                <i class="fa-solid fa-plus"></i>New Segment
+            </a>
+        </div>
+    </div>
+
+    <!-- Filter + Cards -->
+    <section class="flex-1 px-6 pt-3 pb-3 overflow-hidden flex flex-col gap-0 min-h-0">
+
+        <!-- Search Bar -->
+        <form id="filter-form" method="GET" action="/segments" class="mb-3 shrink-0">
+            <div class="flex flex-wrap items-center gap-2">
+                <div class="relative shrink-0" style="min-width:220px;max-width:320px;flex:1 1 220px;">
+                    <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-brand-textMuted text-xs"></i>
+                    <input type="text" name="search" id="seg-search" value="<%= query.search || '' %>"
+                        placeholder="Search segments by name or description..."
+                        class="w-full bg-btnSecondary border border-btnBorder rounded-md py-1.5 pl-9 pr-3 text-sm focus:outline-none focus:border-brand-primary transition-all">
+                </div>
+                <button type="submit" class="px-3 py-1.5 bg-btnSecondary border border-btnBorder rounded-md text-sm hover:bg-brand-border/50 transition-all">
+                    <i class="fa-solid fa-filter mr-1 text-xs"></i>Filter
+                </button>
+                <% if (query.search) { %>
+                <a href="/segments" class="text-brand-primary text-sm hover:underline">Clear</a>
+                <% } %>
+            </div>
+        </form>
+
+        <!-- Scrollable Cards -->
+        <div class="flex-1 overflow-y-auto min-h-0">
+            <% if (!segments || segments.length === 0) { %>
+            <div class="flex flex-col items-center justify-center py-20 text-center">
+                <div class="w-16 h-16 rounded-full bg-brand-border/30 flex items-center justify-center mx-auto mb-4">
+                    <i class="fa-solid fa-layer-group text-3xl text-brand-textMuted"></i>
+                </div>
+                <p class="text-base font-medium text-brand-textMuted mb-1">No segments found</p>
+                <p class="text-sm text-brand-textMuted/60 mb-4"><%= query.search ? 'Try a different search term.' : 'Create segments to target contacts — used for email, WhatsApp campaigns, and opt-in imports.' %></p>
+                <% if (!query.search) { %>
+                <a href="/segments/new" class="inline-flex items-center gap-2 px-5 py-2.5 bg-brand-primary text-white rounded-lg text-sm font-medium">
+                    <i class="fa-solid fa-plus"></i>Create Segment
+                </a>
+                <% } %>
+            </div>
+            <% } else { %>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 pb-2">
+                <% segments.forEach(seg => {
+                    const rules = (seg.filters && seg.filters.rules) ? seg.filters.rules : [];
+                    const filterTags = rules.slice(0, 4).map(r => r.value || r.field).filter(Boolean);
+                %>
+                <div class="bg-brand-card border border-brand-border rounded-xl p-5 flex flex-col justify-between hover:border-brand-primary/50 hover:shadow-lg hover:shadow-brand-primary/5 transition-all group">
+                    <div>
+                        <div class="flex justify-between items-start mb-4">
+                            <h3 class="font-semibold text-white text-sm leading-snug"><a href="/segments/<%= seg.id %>" class="hover:text-brand-primary transition-colors"><%= seg.name %></a></h3>
+                            <div class="flex gap-1 shrink-0 ml-2">
+                                <a href="/segments/<%= seg.id %>" class="p-1.5 text-brand-textMuted hover:text-white rounded transition-colors" title="View"><i class="fa-solid fa-eye text-xs"></i></a>
+                                <% if (user && user.role !== 'editor' && user.role !== 'lead_manager' && user.role !== 'campaign_manager') { %>
+                                <form action="/segments/<%= seg.id %>" method="POST" class="inline">
+                                    <input type="hidden" name="_method" value="DELETE">
+                                    <button type="submit" onclick="return confirm('Delete this segment?')" class="p-1.5 text-brand-textMuted hover:text-red-400 rounded transition-colors" title="Delete"><i class="fa-solid fa-trash text-xs"></i></button>
+                                </form>
+                                <% } %>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <div class="text-[28px] font-bold text-brand-primary leading-none"><%= (seg.contact_count || 0).toLocaleString() %></div>
+                            <div class="text-brand-textMuted text-xs uppercase tracking-wider mt-0.5">contacts match</div>
+                        </div>
+
+                        <% if (seg.description) { %>
+                        <p class="text-brand-textMuted text-[13px] mb-3 truncate"><%= seg.description %></p>
+                        <% } %>
+
+                        <% if (filterTags.length > 0) { %>
+                        <div class="flex flex-wrap gap-1.5 mb-4">
+                            <% filterTags.forEach(tag => { %>
+                            <span class="bg-brand-dark px-2 py-0.5 rounded text-[11px] text-brand-textMuted border border-brand-border truncate max-w-[120px]"><%= tag %></span>
+                            <% }) %>
+                            <% if (rules.length > 4) { %><span class="bg-brand-dark px-2 py-0.5 rounded text-[11px] text-brand-textMuted border border-brand-border">+<%= rules.length - 4 %> more</span><% } %>
+                        </div>
+                        <% } else { %>
+                        <div class="mb-4"><span class="text-[11px] text-brand-textMuted/60 italic">No filters defined</span></div>
+                        <% } %>
+                    </div>
+
+                    <div class="pt-4 border-t border-brand-border/50 flex items-center justify-between">
+                        <div class="flex items-center gap-3">
+                            <span class="text-[11px] text-brand-textMuted">
+                                Updated <%= seg.updated_at ? new Date(seg.updated_at).toLocaleDateString() : 'N/A' %>
+                            </span>
+                            <form action="/segments/<%= seg.id %>/refresh" method="POST" class="inline">
+                                <button type="submit" class="text-[11px] text-brand-textMuted hover:text-brand-primary transition-colors" title="Refresh count">
+                                    <i class="fa-solid fa-rotate-right text-[10px]"></i>
+                                </button>
+                            </form>
+                        </div>
+                        <a href="/campaigns/new?segment=<%= seg.id %>" class="text-brand-primary text-sm font-medium hover:underline">Use in Campaign</a>
+                    </div>
+                </div>
+                <% }) %>
+            </div>
+            <% } %>
+        </div>
+
+        <!-- Pagination -->
+        <% const totalPages = Math.ceil(total / limit); %>
+        <% if (totalPages > 1) { %>
+        <div class="shrink-0 flex items-center justify-between pt-3">
+            <span class="text-xs text-brand-textMuted">
+                Showing <%= ((pageNo - 1) * limit + 1).toLocaleString() %>–<%= Math.min(pageNo * limit, total).toLocaleString() %> of <%= total.toLocaleString() %>
+            </span>
+            <div class="flex items-center gap-1">
+                <% if (pageNo > 1) { %>
+                <a href="/segments?<%= new URLSearchParams({...query, page: pageNo - 1}).toString() %>"
+                    class="px-3 py-1.5 bg-btnSecondary border border-btnBorder rounded text-xs hover:bg-brand-border/50 transition-all">
+                    <i class="fa-solid fa-chevron-left text-[10px] mr-1"></i>Prev
+                </a>
+                <% } %>
+                <%
+                    const startPg = Math.max(1, pageNo - 2);
+                    const endPg   = Math.min(totalPages, pageNo + 2);
+                    for (let p = startPg; p <= endPg; p++) { %>
+                <a href="/segments?<%= new URLSearchParams({...query, page: p}).toString() %>"
+                    class="px-3 py-1.5 border rounded text-xs transition-all <%= p === pageNo ? 'bg-brand-primary border-brand-primary text-white' : 'bg-btnSecondary border-btnBorder hover:bg-brand-border/50' %>">
+                    <%= p %>
+                </a>
+                <% } %>
+                <% if (pageNo < totalPages) { %>
+                <a href="/segments?<%= new URLSearchParams({...query, page: pageNo + 1}).toString() %>"
+                    class="px-3 py-1.5 bg-btnSecondary border border-btnBorder rounded text-xs hover:bg-brand-border/50 transition-all">
+                    Next<i class="fa-solid fa-chevron-right text-[10px] ml-1"></i>
+                </a>
+                <% } %>
+            </div>
+        </div>
+        <% } %>
+
+    </section>
+</div>
+</div>
+
+<!-- AI Segment Modal -->
+<div id="ai-seg-modal" class="hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+  <div class="bg-brand-card border border-brand-border rounded-2xl w-full max-w-lg shadow-2xl">
+    <div class="flex items-center justify-between px-6 py-4 border-b border-brand-border">
+      <div class="flex items-center gap-2">
+        <i class="fa-solid fa-wand-magic-sparkles text-purple-400"></i>
+        <h3 class="font-semibold text-sm">AI Segment Builder</h3>
+      </div>
+      <button onclick="document.getElementById('ai-seg-modal').classList.add('hidden')" class="text-brand-textMuted hover:text-white">
+        <i class="fa-solid fa-xmark"></i>
+      </button>
+    </div>
+    <form action="/contacts/ai-segment" method="POST" class="p-6 space-y-4">
+      <p class="text-sm text-brand-textMuted">Describe the contacts you want in plain English. AI will build the segment filters automatically.</p>
+      <textarea name="query" rows="3" required placeholder="e.g. SaaS companies in the US with 50-500 employees where the contact is a VP or C-level"
+        class="w-full bg-brand-sidebar border border-brand-border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-purple-500 resize-none"></textarea>
+      <div class="flex gap-3">
+        <button type="submit" id="ai-seg-btn" class="flex-1 py-2.5 bg-purple-600 hover:bg-purple-500 text-white rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2">
+          <i class="fa-solid fa-wand-magic-sparkles"></i>Build Segment
+        </button>
+        <button type="button" onclick="document.getElementById('ai-seg-modal').classList.add('hidden')"
+          class="px-5 py-2.5 bg-brand-sidebar border border-brand-border rounded-lg text-sm transition-all hover:border-brand-primary">
+          Cancel
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+<script>
+(function(){
+    const btn=document.getElementById('sidebar-toggle');
+    const sidebar=document.getElementById('sidebar');
+    const wrapper=document.getElementById('main-wrapper');
+    if(btn)btn.addEventListener('click',()=>{sidebar.classList.toggle('collapsed');wrapper.style.marginLeft=sidebar.classList.contains('collapsed')?'60px':'240px';});
+
+    const aiForm = document.querySelector('#ai-seg-modal form');
+    const aiBtn  = document.getElementById('ai-seg-btn');
+    if (aiForm) aiForm.addEventListener('submit', () => {
+        aiBtn.disabled = true;
+        aiBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Building…';
+    });
+
+    // Auto-submit search on typing
+    const searchInput = document.getElementById('seg-search');
+    if (searchInput) {
+        let searchTimer;
+        searchInput.addEventListener('input', function() {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => document.getElementById('filter-form').submit(), 600);
+        });
+    }
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<%- include('../layout/_head', { title }) %>
+<body class="bg-brand-dark text-gray-100 font-sans antialiased">
+
+<%- include('../layout/_sidebar', { page, totalContacts: stats.totalContacts, activeCampaigns: stats.activeCampaigns, user }) %>
+
+<div id="main-wrapper" class="flex flex-col min-h-screen">
+    <%- include('../layout/_header', { breadcrumbs, user }) %>
+
+    <main id="main-content" class="p-6 space-y-6 overflow-y-auto flex-1">
+
+        <!-- Welcome -->
+        <section>
+            <h1 class="text-2xl font-semibold text-white"><%= greeting || 'Hello' %>, <%= user ? user.name.split(' ')[0] : 'Admin' %></h1>
+            <p class="text-sm text-brand-textMuted mt-1">Here's your outreach performance overview</p>
+        </section>
+
+        <!-- Stats Grid -->
+        <section class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
+            <div class="bg-brand-card border border-brand-border rounded-[10px] p-4">
+                <p class="text-xs text-brand-textMuted uppercase tracking-wider mb-2">Total Contacts</p>
+                <p class="text-[28px] font-semibold leading-none"><%= stats.totalContacts.toLocaleString() %></p>
+                <p class="text-[11px] text-green-500 mt-2 flex items-center"><i class="fa-solid fa-arrow-up mr-1"></i> in database</p>
+            </div>
+            <div class="bg-brand-card border border-brand-border rounded-[10px] p-4">
+                <p class="text-xs text-brand-textMuted uppercase tracking-wider mb-2">Active Campaigns</p>
+                <p class="text-[28px] font-semibold leading-none"><%= stats.activeCampaigns %></p>
+                <p class="text-[11px] text-brand-textMuted mt-2"><%= stats.pausedCampaigns %> paused</p>
+            </div>
+            <div class="bg-brand-card border border-brand-border rounded-[10px] p-4">
+                <p class="text-xs text-brand-textMuted uppercase tracking-wider mb-2">Emails Sent Today</p>
+                <p class="text-[28px] font-semibold leading-none"><%= stats.emailsSentToday.toLocaleString() %></p>
+                <p class="text-[11px] text-brand-textMuted mt-2"><%= stats.totalEmailsSent.toLocaleString() %> total all time</p>
+            </div>
+            <div class="bg-brand-card border border-brand-border rounded-[10px] p-4">
+                <p class="text-xs text-brand-textMuted uppercase tracking-wider mb-2">Open Rate (30d)</p>
+                <p class="text-[28px] font-semibold leading-none text-brand-primary"><%= stats.openRate %>%</p>
+                <p class="text-[11px] text-brand-textMuted mt-2">of emails sent</p>
+            </div>
+            <div class="bg-brand-card border border-brand-border rounded-[10px] p-4">
+                <p class="text-xs text-brand-textMuted uppercase tracking-wider mb-2">Click Rate (30d)</p>
+                <p class="text-[28px] font-semibold leading-none text-brand-secondary"><%= stats.clickRate %>%</p>
+                <p class="text-[11px] text-brand-textMuted mt-2">of emails sent</p>
+            </div>
+            <div class="bg-brand-card border border-brand-border rounded-[10px] p-4">
+                <p class="text-xs text-brand-textMuted uppercase tracking-wider mb-2">Booked Calls</p>
+                <p class="text-[28px] font-semibold leading-none text-green-500"><%= stats.bookedThisWeek %></p>
+                <p class="text-[11px] text-brand-textMuted mt-2">this week</p>
+            </div>
+        </section>
+
+        <!-- Campaign Performance & Recent Activity -->
+        <section class="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            <!-- Campaign Performance Table -->
+            <div class="lg:col-span-3 bg-brand-card border border-brand-border rounded-xl flex flex-col overflow-hidden">
+                <div class="p-5 border-b border-brand-border flex items-center justify-between">
+                    <h2 class="font-semibold">Campaign Performance</h2>
+                    <a href="/campaigns" class="text-xs text-brand-primary hover:underline">View all</a>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left">
+                        <thead>
+                            <tr class="text-[11px] uppercase tracking-wider text-brand-textMuted border-b border-brand-border bg-brand-sidebar/30">
+                                <th class="px-5 py-3 font-medium">Name</th>
+                                <th class="px-5 py-3 font-medium">Status</th>
+                                <th class="px-5 py-3 font-medium">Sent</th>
+                                <th class="px-5 py-3 font-medium">Open%</th>
+                                <th class="px-5 py-3 font-medium">Click%</th>
+                                <th class="px-5 py-3 font-medium">Booked</th>
+                                <th class="px-5 py-3 font-medium text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="text-sm divide-y divide-brand-border/50">
+                            <% if (!campaignPerf || campaignPerf.length === 0) { %>
+                            <tr><td colspan="7" class="px-5 py-8 text-center text-brand-textMuted text-sm">No campaigns yet. <a href="/campaigns/new" class="text-brand-primary hover:underline">Create one</a></td></tr>
+                            <% } else { %>
+                            <% campaignPerf.forEach(cam => {
+                                const base = cam.emails_sent > 0 ? cam.emails_sent : (cam.total_contacts || 1);
+                                const openPct = (cam.opened / base * 100).toFixed(1);
+                                const clickPct = (cam.clicked / base * 100).toFixed(1);
+                                let badgeClass = '';
+                                if (cam.status === 'active') badgeClass = 'bg-green-500/10 text-green-500 border border-green-500/20';
+                                else if (cam.status === 'paused') badgeClass = 'bg-amber-500/10 text-amber-500 border border-amber-500/20';
+                                else if (cam.status === 'draft') badgeClass = 'bg-brand-primary/10 text-brand-primary border border-brand-primary/20';
+                                else if (cam.status === 'completed') badgeClass = 'bg-green-900/30 text-green-400 border border-green-400/20';
+                                else badgeClass = 'bg-red-500/10 text-red-500 border border-red-500/20';
+                            %>
+                            <tr class="hover:bg-brand-sidebar/20 transition-colors">
+                                <td class="px-5 py-4 font-medium truncate max-w-[160px]"><a href="/campaigns/<%= cam.id %>" class="hover:text-brand-primary"><%= cam.name %></a></td>
+                                <td class="px-5 py-4"><span class="px-2 py-0.5 rounded-full text-[10px] capitalize <%= badgeClass %>"><%= cam.status %></span></td>
+                                <td class="px-5 py-4 text-brand-textMuted"><%= (cam.emails_sent||0).toLocaleString() %></td>
+                                <td class="px-5 py-4"><%= openPct %>%</td>
+                                <td class="px-5 py-4"><%= clickPct %>%</td>
+                                <td class="px-5 py-4 font-semibold"><%= cam.booked || 0 %></td>
+                                <td class="px-5 py-4 text-right">
+                                    <a href="/campaigns/<%= cam.id %>" class="text-brand-textMuted hover:text-white px-2"><i class="fa-solid fa-arrow-up-right-from-square text-xs"></i></a>
+                                </td>
+                            </tr>
+                            <% }) %>
+                            <% } %>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Recent Activity -->
+            <div class="lg:col-span-2 bg-brand-card border border-brand-border rounded-xl flex flex-col overflow-hidden">
+                <div class="p-5 border-b border-brand-border">
+                    <h2 class="font-semibold">Recent Activity</h2>
+                </div>
+                <div class="p-5 space-y-4 overflow-y-auto max-h-[340px]">
+                    <% if (!recentEvents || recentEvents.length === 0) { %>
+                    <p class="text-sm text-brand-textMuted text-center py-4">No recent activity</p>
+                    <% } else { %>
+                    <% recentEvents.forEach(ev => {
+                        const name = [ev.first_name, ev.last_name].filter(Boolean).join(' ') || ev.contact_email;
+                        const initials = name ? name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase() : '??';
+                        let dotColor = 'bg-brand-textMuted';
+                        let evLabel = ev.event_type;
+                        if (ev.event_type === 'opened') { dotColor = 'bg-brand-primary'; evLabel = 'opened your email'; }
+                        else if (ev.event_type === 'clicked') { dotColor = 'bg-green-500'; evLabel = 'clicked a link'; }
+                        else if (ev.event_type === 'booked') { dotColor = 'bg-amber-500'; evLabel = 'booked a call'; }
+                        else if (ev.event_type === 'bounced') { dotColor = 'bg-red-500'; evLabel = 'email bounced'; }
+                        else if (ev.event_type === 'unsubscribed') { dotColor = 'bg-gray-500'; evLabel = 'unsubscribed'; }
+                        else if (ev.event_type === 'delivered') { dotColor = 'bg-teal-500'; evLabel = 'email delivered'; }
+                        const timeAgo = (() => {
+                            const diff = Date.now() - new Date(ev.created_at).getTime();
+                            const mins = Math.floor(diff / 60000);
+                            if (mins < 60) return mins + 'm ago';
+                            const hrs = Math.floor(mins / 60);
+                            if (hrs < 24) return hrs + 'h ago';
+                            return Math.floor(hrs/24) + 'd ago';
+                        })();
+                    %>
+                    <div class="flex items-start gap-3">
+                        <div class="relative mt-1 shrink-0">
+                            <div class="w-8 h-8 rounded-full bg-brand-primary/20 flex items-center justify-center text-xs font-bold"><%= initials %></div>
+                            <div class="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full <%= dotColor %> border-2 border-brand-card"></div>
+                        </div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-xs"><span class="font-semibold text-white"><%= name %></span> <%= evLabel %></p>
+                            <p class="text-[10px] text-brand-textMuted"><%= timeAgo %><% if (ev.campaign_name) { %> · <%= ev.campaign_name %><% } %></p>
+                        </div>
+                    </div>
+                    <% }) %>
+                    <% } %>
+                </div>
+            </div>
+        </section>
+
+        <!-- Quick Actions -->
+        <section class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+            <a href="/contacts/import" class="bg-brand-card border border-brand-border rounded-xl p-4 hover:border-brand-primary/50 hover:bg-brand-primary/5 transition-all group">
+                <div class="w-10 h-10 rounded-lg bg-brand-primary/10 flex items-center justify-center mb-3 group-hover:bg-brand-primary/20">
+                    <i class="fa-solid fa-file-import text-brand-primary"></i>
+                </div>
+                <p class="text-sm font-semibold">Import Contacts</p>
+                <p class="text-xs text-brand-textMuted mt-1">Upload XLSX or CSV</p>
+            </a>
+            <a href="/campaigns/new" class="bg-brand-card border border-brand-border rounded-xl p-4 hover:border-green-500/50 hover:bg-green-500/5 transition-all group">
+                <div class="w-10 h-10 rounded-lg bg-green-500/10 flex items-center justify-center mb-3 group-hover:bg-green-500/20">
+                    <i class="fa-solid fa-rocket text-green-500"></i>
+                </div>
+                <p class="text-sm font-semibold">New Campaign</p>
+                <p class="text-xs text-brand-textMuted mt-1">Start outreach</p>
+            </a>
+            <a href="/segments/new" class="bg-brand-card border border-brand-border rounded-xl p-4 hover:border-brand-secondary/50 hover:bg-brand-secondary/5 transition-all group">
+                <div class="w-10 h-10 rounded-lg bg-brand-secondary/10 flex items-center justify-center mb-3 group-hover:bg-brand-secondary/20">
+                    <i class="fa-solid fa-layer-group text-brand-secondary"></i>
+                </div>
+                <p class="text-sm font-semibold">Build Segment</p>
+                <p class="text-xs text-brand-textMuted mt-1">Filter your contacts</p>
+            </a>
+            <a href="/templates/new" class="bg-brand-card border border-brand-border rounded-xl p-4 hover:border-amber-500/50 hover:bg-amber-500/5 transition-all group">
+                <div class="w-10 h-10 rounded-lg bg-amber-500/10 flex items-center justify-center mb-3 group-hover:bg-amber-500/20">
+                    <i class="fa-regular fa-file-code text-amber-500"></i>
+                </div>
+                <p class="text-sm font-semibold">New Template</p>
+                <p class="text-xs text-brand-textMuted mt-1">Create email template</p>
+            </a>
+        </section>
+    </main>
+</div>
+
+<div id="toast-container"></div>
+
+<script>
+(function() {
+    const btn = document.getElementById('sidebar-toggle');
+    const sidebar = document.getElementById('sidebar');
+    const wrapper = document.getElementById('main-wrapper');
+    if (btn) {
+        btn.addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+            wrapper.style.marginLeft = sidebar.classList.contains('collapsed') ? '60px' : '240px';
+        });
+    }
+})();
+</script>
+</body>
+</html>

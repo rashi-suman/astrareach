@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<%- include('../layout/_head', { title: 'Importing...' }) %>
+<body class="bg-brand-dark text-gray-100 font-sans antialiased">
+<%- include('../layout/_sidebar', { page: 'contacts', user }) %>
+<div id="main-wrapper" class="flex flex-col min-h-screen">
+<%- include('../layout/_header', { breadcrumbs, user }) %>
+<main class="flex-1 overflow-y-auto p-6">
+<div class="max-w-3xl mx-auto space-y-6">
+
+    <div>
+        <h1 class="text-2xl font-bold text-white">Importing Contacts</h1>
+        <p class="text-brand-textMuted text-sm mt-1">Batch ID: <span class="font-mono text-xs text-brand-textMuted/60"><%= batchId %></span></p>
+    </div>
+
+    <!-- Progress Card -->
+    <div class="bg-brand-card border border-brand-border rounded-xl p-6 space-y-5">
+        <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div id="status-icon" class="w-10 h-10 rounded-full bg-brand-primary/15 flex items-center justify-center">
+                    <i id="status-fa" class="fa-solid fa-spinner fa-spin text-brand-primary"></i>
+                </div>
+                <div>
+                    <p id="status-text" class="text-sm font-semibold">Processing...</p>
+                    <p id="status-sub" class="text-xs text-brand-textMuted mt-0.5">Reading file…</p>
+                </div>
+            </div>
+            <div class="text-right">
+                <p class="text-2xl font-bold text-brand-primary" id="pct-display">0%</p>
+                <p class="text-xs text-brand-textMuted" id="rows-display">0 / 0</p>
+            </div>
+        </div>
+
+        <!-- Progress bar -->
+        <div class="w-full h-2.5 bg-brand-border rounded-full overflow-hidden">
+            <div id="progress-bar" class="h-full bg-brand-primary rounded-full transition-all duration-300" style="width:0%"></div>
+        </div>
+
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            <div class="bg-brand-dark rounded-lg p-3 border border-brand-border/50" title="Total rows in the file">
+                <p class="text-xs text-brand-textMuted uppercase tracking-wide mb-1">Total Rows</p>
+                <p id="stat-total" class="text-xl font-bold text-white">—</p>
+            </div>
+            <div class="bg-brand-dark rounded-lg p-3 border border-brand-border/50" title="New contacts added to the database">
+                <p class="text-xs text-brand-textMuted uppercase tracking-wide mb-1">New Contacts</p>
+                <p id="stat-imported" class="text-xl font-bold text-green-500">0</p>
+            </div>
+            <div class="bg-brand-dark rounded-lg p-3 border border-brand-border/50" title="Rows with a valid email that already existed in the database or appeared more than once in the file — skipped silently">
+                <p class="text-xs text-brand-textMuted uppercase tracking-wide mb-1">Duplicates</p>
+                <p id="stat-dupes" class="text-xl font-bold text-amber-500">0</p>
+            </div>
+            <div class="bg-brand-dark rounded-lg p-3 border border-brand-border/50" title="Rows skipped because they had no valid email address">
+                <p class="text-xs text-brand-textMuted uppercase tracking-wide mb-1">No Email</p>
+                <p id="stat-skipped" class="text-xl font-bold text-blue-400">0</p>
+            </div>
+            <div class="bg-brand-dark rounded-lg p-3 border border-brand-border/50" title="Rows that caused a database error (malformed data)">
+                <p class="text-xs text-brand-textMuted uppercase tracking-wide mb-1">Errors</p>
+                <p id="stat-errors" class="text-xl font-bold text-red-500">0</p>
+            </div>
+        </div>
+
+        <!-- Error message -->
+        <div id="error-msg" class="hidden p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-xs text-red-400"></div>
+    </div>
+
+    <!-- Recent contacts preview -->
+    <div class="bg-brand-card border border-brand-border rounded-xl overflow-hidden">
+        <div class="p-5 border-b border-brand-border flex items-center justify-between">
+            <h2 class="font-semibold text-sm">Recently Imported</h2>
+            <span id="preview-count" class="text-xs text-brand-textMuted">0 contacts</span>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-brand-sidebar/30 border-b border-brand-border text-[11px] uppercase tracking-wider text-brand-textMuted">
+                    <tr>
+                        <th class="px-4 py-3 text-left font-medium">Name</th>
+                        <th class="px-4 py-3 text-left font-medium">Email</th>
+                        <th class="px-4 py-3 text-left font-medium">Company</th>
+                    </tr>
+                </thead>
+                <tbody id="preview-tbody" class="divide-y divide-brand-border/40">
+                    <tr><td colspan="3" class="px-4 py-6 text-center text-brand-textMuted text-xs">Waiting for data...</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="done-actions" class="hidden flex gap-3">
+        <a href="/contacts" class="px-5 py-2.5 bg-brand-primary text-white rounded-lg text-sm font-semibold hover:bg-blue-500 transition-all">
+            <i class="fa-solid fa-users mr-2"></i>View Contacts
+        </a>
+        <a href="/contacts/import" class="px-5 py-2.5 bg-btnSecondary border border-btnBorder rounded-lg text-sm font-medium hover:bg-brand-border/50 transition-all">
+            Import Another File
+        </a>
+    </div>
+</div>
+</main>
+</div>
+<div id="toast-container"></div>
+<script>
+(function(){
+    const btn=document.getElementById('sidebar-toggle');const sidebar=document.getElementById('sidebar');const wrapper=document.getElementById('main-wrapper');
+    if(btn)btn.addEventListener('click',()=>{sidebar.classList.toggle('collapsed');wrapper.style.marginLeft=sidebar.classList.contains('collapsed')?'60px':'240px';});
+
+    const batchId = '<%= batchId %>';
+    let pollInterval;
+
+    function updateUI(resp) {
+        // API returns { progress: {...}, contacts: [...] }
+        const p  = resp.progress || resp;
+        const total    = p.total    || 0;
+        const imported = p.imported || 0;
+        const dupes    = p.duplicates            || 0;
+        const skipped  = p.skipped_invalid_email || 0;
+        const errors   = p.errors                || 0;
+        // processed = everything that has been handled (inserted + duped + skipped + errored)
+        const processed = imported + dupes + skipped + errors;
+        const pct = (p.status === 'done' || p.status === 'failed')
+            ? 100
+            : (total > 0 ? Math.round(processed / total * 100) : 0);
+
+        document.getElementById('pct-display').textContent  = total > 0 ? pct + '%' : '…';
+        document.getElementById('rows-display').textContent = imported.toLocaleString() + ' / ' + (total ? total.toLocaleString() : '…');
+        document.getElementById('progress-bar').style.width = pct + '%';
+        document.getElementById('stat-total').textContent    = total   ? total.toLocaleString()    : '—';
+        document.getElementById('stat-imported').textContent = imported.toLocaleString();
+        document.getElementById('stat-dupes').textContent    = dupes.toLocaleString();
+        document.getElementById('stat-skipped').textContent  = skipped.toLocaleString();
+        document.getElementById('stat-errors').textContent   = errors.toLocaleString();
+
+        // Live phase label
+        const phaseMap = {
+            reading:    'Reading file…',
+            processing: imported > 0
+                ? `Saving contacts… (${imported.toLocaleString()} / ${total.toLocaleString()})`
+                : 'Validating rows…',
+            done:       imported.toLocaleString() + ' contacts imported',
+            failed:     p.last_error || 'Import failed',
+        };
+        if (p.status !== 'done' && p.status !== 'failed') {
+            document.getElementById('status-sub').textContent = p.phase || phaseMap[p.status] || 'Processing…';
+        }
+
+        if (p.last_error) {
+            const errEl = document.getElementById('error-msg');
+            errEl.textContent = 'Error: ' + p.last_error;
+            errEl.classList.remove('hidden');
+        }
+
+        // Live contacts preview (from API contacts array — only refreshes on done/near-done)
+        const contacts = resp.contacts || [];
+        if (contacts.length > 0) {
+            document.getElementById('preview-count').textContent = imported.toLocaleString() + ' contacts';
+            const tbody = document.getElementById('preview-tbody');
+            tbody.innerHTML = contacts.slice(0, 10).map(c => `
+                <tr class="hover:bg-brand-sidebar/20 transition-colors">
+                    <td class="px-4 py-3 text-sm font-medium">${[c.first_name, c.last_name].filter(Boolean).join(' ') || '—'}</td>
+                    <td class="px-4 py-3 text-xs text-brand-textMuted">${c.email}</td>
+                    <td class="px-4 py-3 text-xs text-brand-textMuted">${c.company || '—'}</td>
+                </tr>`).join('');
+        }
+
+        if (p.status === 'done' || p.status === 'failed') {
+            clearInterval(pollInterval);
+            const icon = document.getElementById('status-icon');
+            const fa   = document.getElementById('status-fa');
+
+            if (p.status === 'done') {
+                icon.className = 'w-10 h-10 rounded-full bg-green-500/15 flex items-center justify-center';
+                fa.className   = 'fa-solid fa-check text-green-500';
+                document.getElementById('status-text').textContent = 'Import Complete!';
+                document.getElementById('status-sub').textContent  = imported.toLocaleString() + ' contacts imported successfully';
+                document.getElementById('progress-bar').style.width = '100%';
+                document.getElementById('progress-bar').className   = 'h-full bg-green-500 rounded-full transition-all duration-300';
+                document.getElementById('pct-display').textContent  = '100%';
+            } else {
+                icon.className = 'w-10 h-10 rounded-full bg-red-500/15 flex items-center justify-center';
+                fa.className   = 'fa-solid fa-triangle-exclamation text-red-500';
+                document.getElementById('status-text').textContent = 'Import Failed';
+                document.getElementById('status-sub').textContent  = p.last_error || 'An error occurred during import';
+                if (p.last_error) {
+                    const errEl = document.getElementById('error-msg');
+                    errEl.textContent = p.last_error;
+                    errEl.classList.remove('hidden');
+                }
+            }
+            document.getElementById('done-actions').classList.remove('hidden');
+        }
+    }
+
+    function poll() {
+        fetch('/contacts/import/' + batchId + '/status')
+            .then(r => r.json())
+            .then(updateUI)
+            .catch(console.error);
+    }
+
+    poll();
+    pollInterval = setInterval(poll, 800); // poll every 800ms for live feel
+})();
+</script>
+</body>
+</html>

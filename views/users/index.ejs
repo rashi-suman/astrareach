@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<%- include('../layout/_head', { title: 'Team Members' }) %>
+<body class="bg-brand-dark text-gray-100 font-sans antialiased">
+<%- include('../layout/_sidebar', { page: 'settings', user }) %>
+<div id="main-wrapper" class="flex flex-col min-h-screen">
+<%- include('../layout/_header', { breadcrumbs: ['Users'], user }) %>
+<main class="flex-1 p-6 overflow-y-auto">
+
+  <!-- Flash -->
+  <% const flash_success = typeof success !== 'undefined' ? success : (locals.messages?.success?.[0] || ''); %>
+  <% const flash_error   = typeof error   !== 'undefined' ? error   : (locals.messages?.error?.[0]   || ''); %>
+  <% if (flash_success) { %><div class="mb-4 p-3 bg-green-500/10 border border-green-500/30 rounded-lg text-sm text-green-400"><i class="fa-solid fa-check mr-2"></i><%- flash_success %></div><% } %>
+  <% if (flash_error)   { %><div class="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-sm text-red-400"><i class="fa-solid fa-triangle-exclamation mr-2"></i><%- flash_error %></div><% } %>
+
+  <div class="flex items-center justify-between mb-6">
+    <div>
+      <h1 class="text-2xl font-bold">Team Members</h1>
+      <p class="text-brand-textMuted text-sm mt-1"><%= users.length %> member<%= users.length !== 1 ? 's' : '' %></p>
+    </div>
+    <a href="/users/new" class="px-4 py-2 bg-brand-primary hover:opacity-90 rounded-lg text-sm font-medium transition">
+      <i class="fa-solid fa-plus mr-2"></i>Invite User
+    </a>
+  </div>
+
+  <div class="bg-brand-card border border-brand-border rounded-xl overflow-hidden">
+    <table class="w-full text-sm">
+      <thead class="bg-brand-sidebar border-b border-brand-border">
+        <tr>
+          <th class="text-left px-5 py-3 text-brand-textMuted font-medium">Name</th>
+          <th class="text-left px-5 py-3 text-brand-textMuted font-medium">Email</th>
+          <th class="text-left px-5 py-3 text-brand-textMuted font-medium">Role</th>
+          <th class="text-left px-5 py-3 text-brand-textMuted font-medium">Status</th>
+          <th class="text-left px-5 py-3 text-brand-textMuted font-medium">Last Login</th>
+          <th class="text-left px-5 py-3 text-brand-textMuted font-medium">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-brand-border">
+        <% for (const m of users) { %>
+        <tr class="hover:bg-white/[0.02] transition">
+          <td class="px-5 py-3">
+            <div class="flex items-center gap-3">
+              <div class="w-8 h-8 rounded-full bg-brand-primary/20 text-brand-primary flex items-center justify-center text-xs font-bold shrink-0">
+                <%= (m.name || '?').slice(0,2).toUpperCase() %>
+              </div>
+              <span class="font-medium"><%= m.name %></span>
+            </div>
+          </td>
+          <td class="px-5 py-3 text-brand-textMuted"><%= m.email %></td>
+          <td class="px-5 py-3">
+            <%
+              const roleCls = {
+                superadmin:       'bg-purple-500/20 text-purple-400',
+                admin:            'bg-blue-500/20 text-blue-400',
+                editor:           'bg-teal-500/20 text-teal-400',
+                lead_manager:     'bg-green-500/20 text-green-400',
+                campaign_manager: 'bg-amber-500/20 text-amber-400',
+              }[m.role] || 'bg-gray-500/20 text-gray-400';
+              const roleLabel = {
+                superadmin: 'Super Admin', admin: 'Admin', editor: 'Editor',
+                lead_manager: 'Lead Manager', campaign_manager: 'Campaign Manager',
+              }[m.role] || m.role;
+            %>
+            <span class="px-2 py-0.5 rounded text-xs font-medium <%= roleCls %>">
+              <%= roleLabel %>
+            </span>
+          </td>
+          <td class="px-5 py-3">
+            <span class="inline-flex items-center gap-1.5 text-xs <%= m.is_active ? 'text-green-400' : 'text-red-400' %>">
+              <span class="w-1.5 h-1.5 rounded-full <%= m.is_active ? 'bg-green-400' : 'bg-red-400' %>"></span>
+              <%= m.is_active ? 'Active' : 'Inactive' %>
+            </span>
+          </td>
+          <td class="px-5 py-3 text-brand-textMuted text-xs">
+            <%= m.last_login_at ? new Date(m.last_login_at).toLocaleDateString() : 'Never' %>
+          </td>
+          <td class="px-5 py-3">
+            <div class="flex items-center gap-3">
+              <a href="/users/<%= m.id %>/edit" class="text-brand-textMuted hover:text-white text-xs transition">Edit</a>
+              <form method="POST" action="/users/<%= m.id %>?_method=DELETE" onsubmit="return confirm('Deactivate this user?')">
+                <button class="text-red-400 hover:text-red-300 text-xs transition">Deactivate</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+        <% } %>
+        <% if (!users.length) { %>
+        <tr><td colspan="6" class="px-5 py-12 text-center text-brand-textMuted">No team members yet.</td></tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+</main>
+</div>
+</body></html>

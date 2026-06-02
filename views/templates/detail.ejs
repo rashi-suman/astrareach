@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<%- include('../layout/_head', { title: template.name }) %>
+<body class="bg-brand-dark text-gray-100 font-sans antialiased">
+<%- include('../layout/_sidebar', { page: 'templates', user }) %>
+<div id="main-wrapper" class="flex flex-col min-h-screen">
+<%- include('../layout/_header', { breadcrumbs, user }) %>
+<main class="flex-1 overflow-y-auto p-6">
+<div class="max-w-4xl mx-auto">
+
+    <div class="flex items-start justify-between mb-6">
+        <div>
+            <h1 class="text-xl font-semibold"><%= template.name %></h1>
+            <p class="text-sm text-brand-textMuted mt-1">Subject: <span class="text-white"><%= template.subject %></span></p>
+        </div>
+        <div class="flex gap-2">
+            <a href="/templates/<%= template.id %>/edit" class="px-4 py-2 bg-btnSecondary border border-btnBorder rounded-lg text-sm font-medium hover:bg-brand-border/50 transition-all">
+                <i class="fa-solid fa-pen mr-1.5"></i>Edit
+            </a>
+            <% if (user && user.role !== 'editor' && user.role !== 'lead_manager' && user.role !== 'campaign_manager') { %>
+            <form action="/templates/<%= template.id %>" method="POST" class="inline">
+                <input type="hidden" name="_method" value="DELETE">
+                <button type="submit" onclick="return confirm('Delete template?')" class="px-4 py-2 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg text-sm font-medium hover:bg-red-500/20 transition-all">
+                    <i class="fa-solid fa-trash mr-1.5"></i>Delete
+                </button>
+            </form>
+            <% } %>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Preview -->
+        <div class="lg:col-span-2 bg-brand-card border border-brand-border rounded-xl overflow-hidden">
+            <div class="p-4 border-b border-brand-border flex items-center justify-between">
+                <span class="font-semibold text-sm">Email Preview</span>
+                <span class="text-xs text-brand-textMuted">With sample data</span>
+            </div>
+            <div class="bg-white p-4 min-h-[400px]">
+                <iframe id="preview-frame" class="w-full" style="height:450px;border:none;"
+                    srcdoc="<%- template.body_html ? template.body_html.replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/`/g,'&#96;') : '' %>"></iframe>
+            </div>
+        </div>
+
+        <!-- Info sidebar -->
+        <div class="space-y-4">
+            <div class="bg-brand-card border border-brand-border rounded-xl p-5 space-y-3.5">
+                <div>
+                    <p class="text-xs text-brand-textMuted uppercase tracking-wide mb-0.5">Created</p>
+                    <p class="text-sm"><%= new Date(template.created_at).toLocaleDateString() %></p>
+                </div>
+                <div>
+                    <p class="text-xs text-brand-textMuted uppercase tracking-wide mb-0.5">Last Updated</p>
+                    <p class="text-sm"><%= new Date(template.updated_at).toLocaleDateString() %></p>
+                </div>
+                <% if (template.preview_text) { %>
+                <div>
+                    <p class="text-xs text-brand-textMuted uppercase tracking-wide mb-0.5">Preview Text</p>
+                    <p class="text-sm"><%= template.preview_text %></p>
+                </div>
+                <% } %>
+            </div>
+
+            <% if (template.variables && template.variables.length > 0) { %>
+            <div class="bg-brand-card border border-brand-border rounded-xl p-5">
+                <h3 class="text-sm font-semibold mb-3">Variables (<%= template.variables.length %>)</h3>
+                <div class="flex flex-wrap gap-1.5">
+                    <% template.variables.forEach(v => { %>
+                    <span class="px-2.5 py-1 bg-brand-primary/10 border border-brand-primary/20 text-brand-primary text-xs rounded">{{<%= v %>}}</span>
+                    <% }) %>
+                </div>
+            </div>
+            <% } %>
+
+            <a href="/campaigns/new" class="flex items-center gap-3 p-4 bg-green-500/5 border border-green-500/20 rounded-xl hover:bg-green-500/10 transition-all">
+                <i class="fa-solid fa-rocket text-green-500"></i>
+                <div>
+                    <p class="text-sm font-semibold">Use in Campaign</p>
+                    <p class="text-xs text-brand-textMuted">Start a new campaign with this template</p>
+                </div>
+            </a>
+        </div>
+    </div>
+</div>
+</main>
+</div>
+<script>
+(function(){
+    const btn=document.getElementById('sidebar-toggle');const sidebar=document.getElementById('sidebar');const wrapper=document.getElementById('main-wrapper');
+    if(btn)btn.addEventListener('click',()=>{sidebar.classList.toggle('collapsed');wrapper.style.marginLeft=sidebar.classList.contains('collapsed')?'60px':'240px';});
+
+    // Decode HTML entities for iframe
+    const frame = document.getElementById('preview-frame');
+    if (frame) {
+        const rawHtml = <%- JSON.stringify(template.body_html || '') %>;
+        frame.srcdoc = rawHtml;
+    }
+})();
+</script>
+</body>
+</html>

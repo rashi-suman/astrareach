@@ -1,0 +1,511 @@
+<html lang="en" class="fontawesome-i2svg-active fontawesome-i2svg-complete"><head>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Campaign Creation Wizard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        window.FontAwesomeConfig = { autoReplaceSvg: 'nest' };
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: '#4f7ef8',
+                        darkBg: '#0f172a',
+                        cardBg: '#1e2535',
+                        border: '#2a3347',
+                        textGray: '#8b93a7',
+                        accentGreen: '#10b981'
+                    }
+                }
+            }
+        }
+    </script>
+    <style type="text/css">:host,:root{--fa-font-solid:normal 900 1em/1 "Font Awesome 6 Solid";--fa-font-regular:normal 400 1em/1 "Font Awesome 6 Regular";--fa-font-light:normal 300 1em/1 "Font Awesome 6 Light";--fa-font-thin:normal 100 1em/1 "Font Awesome 6 Thin";--fa-font-duotone:normal 900 1em/1 "Font Awesome 6 Duotone";--fa-font-sharp-solid:normal 900 1em/1 "Font Awesome 6 Sharp";--fa-font-sharp-regular:normal 400 1em/1 "Font Awesome 6 Sharp";--fa-font-sharp-light:normal 300 1em/1 "Font Awesome 6 Sharp";--fa-font-brands:normal 400 1em/1 "Font Awesome 6 Brands"}svg:not(:host).svg-inline--fa,svg:not(:root).svg-inline--fa{overflow:visible;box-sizing:content-box}.svg-inline--fa{display:var(--fa-display,inline-block);height:1em;overflow:visible;vertical-align:-.125em}.svg-inline--fa.fa-2xs{vertical-align:.1em}.svg-inline--fa.fa-xs{vertical-align:0}.svg-inline--fa.fa-sm{vertical-align:-.0714285705em}.svg-inline--fa.fa-lg{vertical-align:-.2em}.svg-inline--fa.fa-xl{vertical-align:-.25em}.svg-inline--fa.fa-2xl{vertical-align:-.3125em}.svg-inline--fa.fa-pull-left{margin-right:var(--fa-pull-margin,.3em);width:auto}.svg-inline--fa.fa-pull-right{margin-left:var(--fa-pull-margin,.3em);width:auto}.svg-inline--fa.fa-li{width:var(--fa-li-width,2em);top:.25em}.svg-inline--fa.fa-fw{width:var(--fa-fw-width,1.25em)}.fa-layers svg.svg-inline--fa{bottom:0;left:0;margin:auto;position:absolute;right:0;top:0}.fa-layers-counter,.fa-layers-text{display:inline-block;position:absolute;text-align:center}.fa-layers{display:inline-block;height:1em;position:relative;text-align:center;vertical-align:-.125em;width:1em}.fa-layers svg.svg-inline--fa{-webkit-transform-origin:center center;transform-origin:center center}.fa-layers-text{left:50%;top:50%;-webkit-transform:translate(-50%,-50%);transform:translate(-50%,-50%);-webkit-transform-origin:center center;transform-origin:center center}.fa-layers-counter{background-color:var(--fa-counter-background-color,#ff253a);border-radius:var(--fa-counter-border-radius,1em);box-sizing:border-box;color:var(--fa-inverse,#fff);line-height:var(--fa-counter-line-height,1);max-width:var(--fa-counter-max-width,5em);min-width:var(--fa-counter-min-width,1.5em);overflow:hidden;padding:var(--fa-counter-padding,.25em .5em);right:var(--fa-right,0);text-overflow:ellipsis;top:var(--fa-top,0);-webkit-transform:scale(var(--fa-counter-scale,.25));transform:scale(var(--fa-counter-scale,.25));-webkit-transform-origin:top right;transform-origin:top right}.fa-layers-bottom-right{bottom:var(--fa-bottom,0);right:var(--fa-right,0);top:auto;-webkit-transform:scale(var(--fa-layers-scale,.25));transform:scale(var(--fa-layers-scale,.25));-webkit-transform-origin:bottom right;transform-origin:bottom right}.fa-layers-bottom-left{bottom:var(--fa-bottom,0);left:var(--fa-left,0);right:auto;top:auto;-webkit-transform:scale(var(--fa-layers-scale,.25));transform:scale(var(--fa-layers-scale,.25));-webkit-transform-origin:bottom left;transform-origin:bottom left}.fa-layers-top-right{top:var(--fa-top,0);right:var(--fa-right,0);-webkit-transform:scale(var(--fa-layers-scale,.25));transform:scale(var(--fa-layers-scale,.25));-webkit-transform-origin:top right;transform-origin:top right}.fa-layers-top-left{left:var(--fa-left,0);right:auto;top:var(--fa-top,0);-webkit-transform:scale(var(--fa-layers-scale,.25));transform:scale(var(--fa-layers-scale,.25));-webkit-transform-origin:top left;transform-origin:top left}.fa-1x{font-size:1em}.fa-2x{font-size:2em}.fa-3x{font-size:3em}.fa-4x{font-size:4em}.fa-5x{font-size:5em}.fa-6x{font-size:6em}.fa-7x{font-size:7em}.fa-8x{font-size:8em}.fa-9x{font-size:9em}.fa-10x{font-size:10em}.fa-2xs{font-size:.625em;line-height:.1em;vertical-align:.225em}.fa-xs{font-size:.75em;line-height:.0833333337em;vertical-align:.125em}.fa-sm{font-size:.875em;line-height:.0714285718em;vertical-align:.0535714295em}.fa-lg{font-size:1.25em;line-height:.05em;vertical-align:-.075em}.fa-xl{font-size:1.5em;line-height:.0416666682em;vertical-align:-.125em}.fa-2xl{font-size:2em;line-height:.03125em;vertical-align:-.1875em}.fa-fw{text-align:center;width:1.25em}.fa-ul{list-style-type:none;margin-left:var(--fa-li-margin,2.5em);padding-left:0}.fa-ul>li{position:relative}.fa-li{left:calc(var(--fa-li-width,2em) * -1);position:absolute;text-align:center;width:var(--fa-li-width,2em);line-height:inherit}.fa-border{border-color:var(--fa-border-color,#eee);border-radius:var(--fa-border-radius,.1em);border-style:var(--fa-border-style,solid);border-width:var(--fa-border-width,.08em);padding:var(--fa-border-padding,.2em .25em .15em)}.fa-pull-left{float:left;margin-right:var(--fa-pull-margin,.3em)}.fa-pull-right{float:right;margin-left:var(--fa-pull-margin,.3em)}.fa-beat{-webkit-animation-name:fa-beat;animation-name:fa-beat;-webkit-animation-delay:var(--fa-animation-delay,0s);animation-delay:var(--fa-animation-delay,0s);-webkit-animation-direction:var(--fa-animation-direction,normal);animation-direction:var(--fa-animation-direction,normal);-webkit-animation-duration:var(--fa-animation-duration,1s);animation-duration:var(--fa-animation-duration,1s);-webkit-animation-iteration-count:var(--fa-animation-iteration-count,infinite);animation-iteration-count:var(--fa-animation-iteration-count,infinite);-webkit-animation-timing-function:var(--fa-animation-timing,ease-in-out);animation-timing-function:var(--fa-animation-timing,ease-in-out)}.fa-bounce{-webkit-animation-name:fa-bounce;animation-name:fa-bounce;-webkit-animation-delay:var(--fa-animation-delay,0s);animation-delay:var(--fa-animation-delay,0s);-webkit-animation-direction:var(--fa-animation-direction,normal);animation-direction:var(--fa-animation-direction,normal);-webkit-animation-duration:var(--fa-animation-duration,1s);animation-duration:var(--fa-animation-duration,1s);-webkit-animation-iteration-count:var(--fa-animation-iteration-count,infinite);animation-iteration-count:var(--fa-animation-iteration-count,infinite);-webkit-animation-timing-function:var(--fa-animation-timing,cubic-bezier(.28,.84,.42,1));animation-timing-function:var(--fa-animation-timing,cubic-bezier(.28,.84,.42,1))}.fa-fade{-webkit-animation-name:fa-fade;animation-name:fa-fade;-webkit-animation-delay:var(--fa-animation-delay,0s);animation-delay:var(--fa-animation-delay,0s);-webkit-animation-direction:var(--fa-animation-direction,normal);animation-direction:var(--fa-animation-direction,normal);-webkit-animation-duration:var(--fa-animation-duration,1s);animation-duration:var(--fa-animation-duration,1s);-webkit-animation-iteration-count:var(--fa-animation-iteration-count,infinite);animation-iteration-count:var(--fa-animation-iteration-count,infinite);-webkit-animation-timing-function:var(--fa-animation-timing,cubic-bezier(.4,0,.6,1));animation-timing-function:var(--fa-animation-timing,cubic-bezier(.4,0,.6,1))}.fa-beat-fade{-webkit-animation-name:fa-beat-fade;animation-name:fa-beat-fade;-webkit-animation-delay:var(--fa-animation-delay,0s);animation-delay:var(--fa-animation-delay,0s);-webkit-animation-direction:var(--fa-animation-direction,normal);animation-direction:var(--fa-animation-direction,normal);-webkit-animation-duration:var(--fa-animation-duration,1s);animation-duration:var(--fa-animation-duration,1s);-webkit-animation-iteration-count:var(--fa-animation-iteration-count,infinite);animation-iteration-count:var(--fa-animation-iteration-count,infinite);-webkit-animation-timing-function:var(--fa-animation-timing,cubic-bezier(.4,0,.6,1));animation-timing-function:var(--fa-animation-timing,cubic-bezier(.4,0,.6,1))}.fa-flip{-webkit-animation-name:fa-flip;animation-name:fa-flip;-webkit-animation-delay:var(--fa-animation-delay,0s);animation-delay:var(--fa-animation-delay,0s);-webkit-animation-direction:var(--fa-animation-direction,normal);animation-direction:var(--fa-animation-direction,normal);-webkit-animation-duration:var(--fa-animation-duration,1s);animation-duration:var(--fa-animation-duration,1s);-webkit-animation-iteration-count:var(--fa-animation-iteration-count,infinite);animation-iteration-count:var(--fa-animation-iteration-count,infinite);-webkit-animation-timing-function:var(--fa-animation-timing,ease-in-out);animation-timing-function:var(--fa-animation-timing,ease-in-out)}.fa-shake{-webkit-animation-name:fa-shake;animation-name:fa-shake;-webkit-animation-delay:var(--fa-animation-delay,0s);animation-delay:var(--fa-animation-delay,0s);-webkit-animation-direction:var(--fa-animation-direction,normal);animation-direction:var(--fa-animation-direction,normal);-webkit-animation-duration:var(--fa-animation-duration,1s);animation-duration:var(--fa-animation-duration,1s);-webkit-animation-iteration-count:var(--fa-animation-iteration-count,infinite);animation-iteration-count:var(--fa-animation-iteration-count,infinite);-webkit-animation-timing-function:var(--fa-animation-timing,linear);animation-timing-function:var(--fa-animation-timing,linear)}.fa-spin{-webkit-animation-name:fa-spin;animation-name:fa-spin;-webkit-animation-delay:var(--fa-animation-delay,0s);animation-delay:var(--fa-animation-delay,0s);-webkit-animation-direction:var(--fa-animation-direction,normal);animation-direction:var(--fa-animation-direction,normal);-webkit-animation-duration:var(--fa-animation-duration,2s);animation-duration:var(--fa-animation-duration,2s);-webkit-animation-iteration-count:var(--fa-animation-iteration-count,infinite);animation-iteration-count:var(--fa-animation-iteration-count,infinite);-webkit-animation-timing-function:var(--fa-animation-timing,linear);animation-timing-function:var(--fa-animation-timing,linear)}.fa-spin-reverse{--fa-animation-direction:reverse}.fa-pulse,.fa-spin-pulse{-webkit-animation-name:fa-spin;animation-name:fa-spin;-webkit-animation-direction:var(--fa-animation-direction,normal);animation-direction:var(--fa-animation-direction,normal);-webkit-animation-duration:var(--fa-animation-duration,1s);animation-duration:var(--fa-animation-duration,1s);-webkit-animation-iteration-count:var(--fa-animation-iteration-count,infinite);animation-iteration-count:var(--fa-animation-iteration-count,infinite);-webkit-animation-timing-function:var(--fa-animation-timing,steps(8));animation-timing-function:var(--fa-animation-timing,steps(8))}@media (prefers-reduced-motion:reduce){.fa-beat,.fa-beat-fade,.fa-bounce,.fa-fade,.fa-flip,.fa-pulse,.fa-shake,.fa-spin,.fa-spin-pulse{-webkit-animation-delay:-1ms;animation-delay:-1ms;-webkit-animation-duration:1ms;animation-duration:1ms;-webkit-animation-iteration-count:1;animation-iteration-count:1;-webkit-transition-delay:0s;transition-delay:0s;-webkit-transition-duration:0s;transition-duration:0s}}@-webkit-keyframes fa-beat{0%,90%{-webkit-transform:scale(1);transform:scale(1)}45%{-webkit-transform:scale(var(--fa-beat-scale,1.25));transform:scale(var(--fa-beat-scale,1.25))}}@keyframes fa-beat{0%,90%{-webkit-transform:scale(1);transform:scale(1)}45%{-webkit-transform:scale(var(--fa-beat-scale,1.25));transform:scale(var(--fa-beat-scale,1.25))}}@-webkit-keyframes fa-bounce{0%{-webkit-transform:scale(1,1) translateY(0);transform:scale(1,1) translateY(0)}10%{-webkit-transform:scale(var(--fa-bounce-start-scale-x,1.1),var(--fa-bounce-start-scale-y,.9)) translateY(0);transform:scale(var(--fa-bounce-start-scale-x,1.1),var(--fa-bounce-start-scale-y,.9)) translateY(0)}30%{-webkit-transform:scale(var(--fa-bounce-jump-scale-x,.9),var(--fa-bounce-jump-scale-y,1.1)) translateY(var(--fa-bounce-height,-.5em));transform:scale(var(--fa-bounce-jump-scale-x,.9),var(--fa-bounce-jump-scale-y,1.1)) translateY(var(--fa-bounce-height,-.5em))}50%{-webkit-transform:scale(var(--fa-bounce-land-scale-x,1.05),var(--fa-bounce-land-scale-y,.95)) translateY(0);transform:scale(var(--fa-bounce-land-scale-x,1.05),var(--fa-bounce-land-scale-y,.95)) translateY(0)}57%{-webkit-transform:scale(1,1) translateY(var(--fa-bounce-rebound,-.125em));transform:scale(1,1) translateY(var(--fa-bounce-rebound,-.125em))}64%{-webkit-transform:scale(1,1) translateY(0);transform:scale(1,1) translateY(0)}100%{-webkit-transform:scale(1,1) translateY(0);transform:scale(1,1) translateY(0)}}@keyframes fa-bounce{0%{-webkit-transform:scale(1,1) translateY(0);transform:scale(1,1) translateY(0)}10%{-webkit-transform:scale(var(--fa-bounce-start-scale-x,1.1),var(--fa-bounce-start-scale-y,.9)) translateY(0);transform:scale(var(--fa-bounce-start-scale-x,1.1),var(--fa-bounce-start-scale-y,.9)) translateY(0)}30%{-webkit-transform:scale(var(--fa-bounce-jump-scale-x,.9),var(--fa-bounce-jump-scale-y,1.1)) translateY(var(--fa-bounce-height,-.5em));transform:scale(var(--fa-bounce-jump-scale-x,.9),var(--fa-bounce-jump-scale-y,1.1)) translateY(var(--fa-bounce-height,-.5em))}50%{-webkit-transform:scale(var(--fa-bounce-land-scale-x,1.05),var(--fa-bounce-land-scale-y,.95)) translateY(0);transform:scale(var(--fa-bounce-land-scale-x,1.05),var(--fa-bounce-land-scale-y,.95)) translateY(0)}57%{-webkit-transform:scale(1,1) translateY(var(--fa-bounce-rebound,-.125em));transform:scale(1,1) translateY(var(--fa-bounce-rebound,-.125em))}64%{-webkit-transform:scale(1,1) translateY(0);transform:scale(1,1) translateY(0)}100%{-webkit-transform:scale(1,1) translateY(0);transform:scale(1,1) translateY(0)}}@-webkit-keyframes fa-fade{50%{opacity:var(--fa-fade-opacity,.4)}}@keyframes fa-fade{50%{opacity:var(--fa-fade-opacity,.4)}}@-webkit-keyframes fa-beat-fade{0%,100%{opacity:var(--fa-beat-fade-opacity,.4);-webkit-transform:scale(1);transform:scale(1)}50%{opacity:1;-webkit-transform:scale(var(--fa-beat-fade-scale,1.125));transform:scale(var(--fa-beat-fade-scale,1.125))}}@keyframes fa-beat-fade{0%,100%{opacity:var(--fa-beat-fade-opacity,.4);-webkit-transform:scale(1);transform:scale(1)}50%{opacity:1;-webkit-transform:scale(var(--fa-beat-fade-scale,1.125));transform:scale(var(--fa-beat-fade-scale,1.125))}}@-webkit-keyframes fa-flip{50%{-webkit-transform:rotate3d(var(--fa-flip-x,0),var(--fa-flip-y,1),var(--fa-flip-z,0),var(--fa-flip-angle,-180deg));transform:rotate3d(var(--fa-flip-x,0),var(--fa-flip-y,1),var(--fa-flip-z,0),var(--fa-flip-angle,-180deg))}}@keyframes fa-flip{50%{-webkit-transform:rotate3d(var(--fa-flip-x,0),var(--fa-flip-y,1),var(--fa-flip-z,0),var(--fa-flip-angle,-180deg));transform:rotate3d(var(--fa-flip-x,0),var(--fa-flip-y,1),var(--fa-flip-z,0),var(--fa-flip-angle,-180deg))}}@-webkit-keyframes fa-shake{0%{-webkit-transform:rotate(-15deg);transform:rotate(-15deg)}4%{-webkit-transform:rotate(15deg);transform:rotate(15deg)}24%,8%{-webkit-transform:rotate(-18deg);transform:rotate(-18deg)}12%,28%{-webkit-transform:rotate(18deg);transform:rotate(18deg)}16%{-webkit-transform:rotate(-22deg);transform:rotate(-22deg)}20%{-webkit-transform:rotate(22deg);transform:rotate(22deg)}32%{-webkit-transform:rotate(-12deg);transform:rotate(-12deg)}36%{-webkit-transform:rotate(12deg);transform:rotate(12deg)}100%,40%{-webkit-transform:rotate(0);transform:rotate(0)}}@keyframes fa-shake{0%{-webkit-transform:rotate(-15deg);transform:rotate(-15deg)}4%{-webkit-transform:rotate(15deg);transform:rotate(15deg)}24%,8%{-webkit-transform:rotate(-18deg);transform:rotate(-18deg)}12%,28%{-webkit-transform:rotate(18deg);transform:rotate(18deg)}16%{-webkit-transform:rotate(-22deg);transform:rotate(-22deg)}20%{-webkit-transform:rotate(22deg);transform:rotate(22deg)}32%{-webkit-transform:rotate(-12deg);transform:rotate(-12deg)}36%{-webkit-transform:rotate(12deg);transform:rotate(12deg)}100%,40%{-webkit-transform:rotate(0);transform:rotate(0)}}@-webkit-keyframes fa-spin{0%{-webkit-transform:rotate(0);transform:rotate(0)}100%{-webkit-transform:rotate(360deg);transform:rotate(360deg)}}@keyframes fa-spin{0%{-webkit-transform:rotate(0);transform:rotate(0)}100%{-webkit-transform:rotate(360deg);transform:rotate(360deg)}}.fa-rotate-90{-webkit-transform:rotate(90deg);transform:rotate(90deg)}.fa-rotate-180{-webkit-transform:rotate(180deg);transform:rotate(180deg)}.fa-rotate-270{-webkit-transform:rotate(270deg);transform:rotate(270deg)}.fa-flip-horizontal{-webkit-transform:scale(-1,1);transform:scale(-1,1)}.fa-flip-vertical{-webkit-transform:scale(1,-1);transform:scale(1,-1)}.fa-flip-both,.fa-flip-horizontal.fa-flip-vertical{-webkit-transform:scale(-1,-1);transform:scale(-1,-1)}.fa-rotate-by{-webkit-transform:rotate(var(--fa-rotate-angle,none));transform:rotate(var(--fa-rotate-angle,none))}.fa-stack{display:inline-block;vertical-align:middle;height:2em;position:relative;width:2.5em}.fa-stack-1x,.fa-stack-2x{bottom:0;left:0;margin:auto;position:absolute;right:0;top:0;z-index:var(--fa-stack-z-index,auto)}.svg-inline--fa.fa-stack-1x{height:1em;width:1.25em}.svg-inline--fa.fa-stack-2x{height:2em;width:2.5em}.fa-inverse{color:var(--fa-inverse,#fff)}.fa-sr-only,.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border-width:0}.fa-sr-only-focusable:not(:focus),.sr-only-focusable:not(:focus){position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border-width:0}.svg-inline--fa .fa-primary{fill:var(--fa-primary-color,currentColor);opacity:var(--fa-primary-opacity,1)}.svg-inline--fa .fa-secondary{fill:var(--fa-secondary-color,currentColor);opacity:var(--fa-secondary-opacity,.4)}.svg-inline--fa.fa-swap-opacity .fa-primary{opacity:var(--fa-secondary-opacity,.4)}.svg-inline--fa.fa-swap-opacity .fa-secondary{opacity:var(--fa-primary-opacity,1)}.svg-inline--fa mask .fa-primary,.svg-inline--fa mask .fa-secondary{fill:#000}.fa-duotone.fa-inverse,.fad.fa-inverse{color:var(--fa-inverse,#fff)}</style><link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <style>
+        ::-webkit-scrollbar { display: none; }
+        .step-line { height: 2px; background: #2a3347; flex-grow: 1; margin-top: 16px; }
+        .active-step-line { background: #4f7ef8; }
+        .wizard-container { max-width: 1200px; margin: 0 auto; }
+        input, textarea, select { background: #131a2b; border: 1px solid #2a3347; color: white; padding: 0.75rem; border-radius: 0.5rem; outline: none; }
+        input:focus, textarea:focus { border-color: #4f7ef8; }
+        .toggle-switch { width: 44px; height: 24px; background: #2a3347; border-radius: 12px; position: relative; cursor: pointer; transition: 0.3s; }
+        .toggle-switch.on { background: #4f7ef8; }
+        .toggle-dot { width: 18px; height: 18px; background: white; border-radius: 50%; position: absolute; top: 3px; left: 3px; transition: 0.3s; }
+        .toggle-switch.on .toggle-dot { left: 23px; }
+    </style>
+<style>*, ::before, ::after{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }::backdrop{--tw-border-spacing-x:0;--tw-border-spacing-y:0;--tw-translate-x:0;--tw-translate-y:0;--tw-rotate:0;--tw-skew-x:0;--tw-skew-y:0;--tw-scale-x:1;--tw-scale-y:1;--tw-pan-x: ;--tw-pan-y: ;--tw-pinch-zoom: ;--tw-scroll-snap-strictness:proximity;--tw-gradient-from-position: ;--tw-gradient-via-position: ;--tw-gradient-to-position: ;--tw-ordinal: ;--tw-slashed-zero: ;--tw-numeric-figure: ;--tw-numeric-spacing: ;--tw-numeric-fraction: ;--tw-ring-inset: ;--tw-ring-offset-width:0px;--tw-ring-offset-color:#fff;--tw-ring-color:rgb(59 130 246 / 0.5);--tw-ring-offset-shadow:0 0 #0000;--tw-ring-shadow:0 0 #0000;--tw-shadow:0 0 #0000;--tw-shadow-colored:0 0 #0000;--tw-blur: ;--tw-brightness: ;--tw-contrast: ;--tw-grayscale: ;--tw-hue-rotate: ;--tw-invert: ;--tw-saturate: ;--tw-sepia: ;--tw-drop-shadow: ;--tw-backdrop-blur: ;--tw-backdrop-brightness: ;--tw-backdrop-contrast: ;--tw-backdrop-grayscale: ;--tw-backdrop-hue-rotate: ;--tw-backdrop-invert: ;--tw-backdrop-opacity: ;--tw-backdrop-saturate: ;--tw-backdrop-sepia: ;--tw-contain-size: ;--tw-contain-layout: ;--tw-contain-paint: ;--tw-contain-style: }/* ! tailwindcss v3.4.17 | MIT License | https://tailwindcss.com */*,::after,::before{box-sizing:border-box;border-width:0;border-style:solid;border-color:#e5e7eb}::after,::before{--tw-content:''}:host,html{line-height:1.5;-webkit-text-size-adjust:100%;-moz-tab-size:4;tab-size:4;font-family:ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";font-feature-settings:normal;font-variation-settings:normal;-webkit-tap-highlight-color:transparent}body{margin:0;line-height:inherit}hr{height:0;color:inherit;border-top-width:1px}abbr:where([title]){-webkit-text-decoration:underline dotted;text-decoration:underline dotted}h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}a{color:inherit;text-decoration:inherit}b,strong{font-weight:bolder}code,kbd,pre,samp{font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;font-feature-settings:normal;font-variation-settings:normal;font-size:1em}small{font-size:80%}sub,sup{font-size:75%;line-height:0;position:relative;vertical-align:baseline}sub{bottom:-.25em}sup{top:-.5em}table{text-indent:0;border-color:inherit;border-collapse:collapse}button,input,optgroup,select,textarea{font-family:inherit;font-feature-settings:inherit;font-variation-settings:inherit;font-size:100%;font-weight:inherit;line-height:inherit;letter-spacing:inherit;color:inherit;margin:0;padding:0}button,select{text-transform:none}button,input:where([type=button]),input:where([type=reset]),input:where([type=submit]){-webkit-appearance:button;background-color:transparent;background-image:none}:-moz-focusring{outline:auto}:-moz-ui-invalid{box-shadow:none}progress{vertical-align:baseline}::-webkit-inner-spin-button,::-webkit-outer-spin-button{height:auto}[type=search]{-webkit-appearance:textfield;outline-offset:-2px}::-webkit-search-decoration{-webkit-appearance:none}::-webkit-file-upload-button{-webkit-appearance:button;font:inherit}summary{display:list-item}blockquote,dd,dl,figure,h1,h2,h3,h4,h5,h6,hr,p,pre{margin:0}fieldset{margin:0;padding:0}legend{padding:0}menu,ol,ul{list-style:none;margin:0;padding:0}dialog{padding:0}textarea{resize:vertical}input::placeholder,textarea::placeholder{opacity:1;color:#9ca3af}[role=button],button{cursor:pointer}:disabled{cursor:default}audio,canvas,embed,iframe,img,object,svg,video{display:block;vertical-align:middle}img,video{max-width:100%;height:auto}[hidden]:where(:not([hidden=until-found])){display:none}.absolute{position:absolute}.relative{position:relative}.sticky{position:sticky}.left-4{left:1rem}.top-0{top:0px}.top-1\/2{top:50%}.top-24{top:6rem}.z-10{z-index:10}.z-50{z-index:50}.-mx-10{margin-left:-2.5rem;margin-right:-2.5rem}.mx-2{margin-left:0.5rem;margin-right:0.5rem}.mx-auto{margin-left:auto;margin-right:auto}.mb-12{margin-bottom:3rem}.mb-2{margin-bottom:0.5rem}.mb-3{margin-bottom:0.75rem}.mb-4{margin-bottom:1rem}.mb-6{margin-bottom:1.5rem}.mb-8{margin-bottom:2rem}.ml-1{margin-left:0.25rem}.mr-1{margin-right:0.25rem}.mt-10{margin-top:2.5rem}.block{display:block}.flex{display:flex}.grid{display:grid}.hidden{display:none}.h-10{height:2.5rem}.h-12{height:3rem}.h-16{height:4rem}.h-20{height:5rem}.h-32{height:8rem}.h-4{height:1rem}.h-6{height:1.5rem}.min-h-\[calc\(1024px-64px\)\]{min-height:calc(1024px - 64px)}.w-10{width:2.5rem}.w-12{width:3rem}.w-16{width:4rem}.w-4{width:1rem}.w-5{width:1.25rem}.w-6{width:1.5rem}.w-64{width:16rem}.w-full{width:100%}.w-px{width:1px}.min-w-\[280px\]{min-width:280px}.max-w-4xl{max-width:56rem}.max-w-5xl{max-width:64rem}.max-w-6xl{max-width:72rem}.max-w-\[640px\]{max-width:640px}.flex-1{flex:1 1 0%}.-translate-y-1\/2{--tw-translate-y:-50%;transform:translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}.cursor-help{cursor:help}.cursor-pointer{cursor:pointer}.resize-none{resize:none}.grid-cols-1{grid-template-columns:repeat(1, minmax(0, 1fr))}.flex-col{flex-direction:column}.items-start{align-items:flex-start}.items-center{align-items:center}.justify-end{justify-content:flex-end}.justify-center{justify-content:center}.justify-between{justify-content:space-between}.gap-2{gap:0.5rem}.gap-3{gap:0.75rem}.gap-4{gap:1rem}.gap-6{gap:1.5rem}.gap-8{gap:2rem}.space-y-1 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(0.25rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(0.25rem * var(--tw-space-y-reverse))}.space-y-4 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(1rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(1rem * var(--tw-space-y-reverse))}.space-y-6 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(1.5rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(1.5rem * var(--tw-space-y-reverse))}.space-y-8 > :not([hidden]) ~ :not([hidden]){--tw-space-y-reverse:0;margin-top:calc(2rem * calc(1 - var(--tw-space-y-reverse)));margin-bottom:calc(2rem * var(--tw-space-y-reverse))}.divide-y > :not([hidden]) ~ :not([hidden]){--tw-divide-y-reverse:0;border-top-width:calc(1px * calc(1 - var(--tw-divide-y-reverse)));border-bottom-width:calc(1px * var(--tw-divide-y-reverse))}.divide-border > :not([hidden]) ~ :not([hidden]){--tw-divide-opacity:1;border-color:rgb(42 51 71 / var(--tw-divide-opacity, 1))}.overflow-hidden{overflow:hidden}.overflow-x-auto{overflow-x:auto}.overflow-y-auto{overflow-y:auto}.rounded{border-radius:0.25rem}.rounded-\[12px\]{border-radius:12px}.rounded-full{border-radius:9999px}.rounded-lg{border-radius:0.5rem}.rounded-xl{border-radius:0.75rem}.border{border-width:1px}.border-2{border-width:2px}.border-4{border-width:4px}.border-b{border-bottom-width:1px}.border-r{border-right-width:1px}.border-border{--tw-border-opacity:1;border-color:rgb(42 51 71 / var(--tw-border-opacity, 1))}.border-brand{--tw-border-opacity:1;border-color:rgb(79 126 248 / var(--tw-border-opacity, 1))}.border-brand\/20{border-color:rgb(79 126 248 / 0.2)}.border-darkBg{--tw-border-opacity:1;border-color:rgb(15 23 42 / var(--tw-border-opacity, 1))}.bg-darkBg{--tw-bg-opacity:1;background-color:rgb(15 23 42 / var(--tw-bg-opacity, 1))}.bg-accentGreen\/20{background-color:rgb(16 185 129 / 0.2)}.bg-border{--tw-bg-opacity:1;background-color:rgb(42 51 71 / var(--tw-bg-opacity, 1))}.bg-brand{--tw-bg-opacity:1;background-color:rgb(79 126 248 / var(--tw-bg-opacity, 1))}.bg-brand\/10{background-color:rgb(79 126 248 / 0.1)}.bg-brand\/20{background-color:rgb(79 126 248 / 0.2)}.bg-brand\/5{background-color:rgb(79 126 248 / 0.05)}.bg-cardBg{--tw-bg-opacity:1;background-color:rgb(30 37 53 / var(--tw-bg-opacity, 1))}.bg-darkBg\/50{background-color:rgb(15 23 42 / 0.5)}.bg-white\/5{background-color:rgb(255 255 255 / 0.05)}.bg-yellow-500\/20{background-color:rgb(234 179 8 / 0.2)}.p-2{padding:0.5rem}.p-3{padding:0.75rem}.p-4{padding:1rem}.p-6{padding:1.5rem}.p-8{padding:2rem}.px-1{padding-left:0.25rem;padding-right:0.25rem}.px-2{padding-left:0.5rem;padding-right:0.5rem}.px-3{padding-left:0.75rem;padding-right:0.75rem}.px-6{padding-left:1.5rem;padding-right:1.5rem}.px-8{padding-left:2rem;padding-right:2rem}.py-0\.5{padding-top:0.125rem;padding-bottom:0.125rem}.py-1\.5{padding-top:0.375rem;padding-bottom:0.375rem}.py-3{padding-top:0.75rem;padding-bottom:0.75rem}.py-4{padding-top:1rem;padding-bottom:1rem}.pb-4{padding-bottom:1rem}.pl-10{padding-left:2.5rem}.text-left{text-align:left}.text-center{text-align:center}.font-sans{font-family:ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"}.text-\[10px\]{font-size:10px}.text-\[11px\]{font-size:11px}.text-\[13px\]{font-size:13px}.text-\[18px\]{font-size:18px}.text-lg{font-size:1.125rem;line-height:1.75rem}.text-sm{font-size:0.875rem;line-height:1.25rem}.text-xl{font-size:1.25rem;line-height:1.75rem}.text-xs{font-size:0.75rem;line-height:1rem}.font-bold{font-weight:700}.font-medium{font-weight:500}.font-semibold{font-weight:600}.uppercase{text-transform:uppercase}.leading-relaxed{line-height:1.625}.tracking-wider{letter-spacing:0.05em}.tracking-widest{letter-spacing:0.1em}.text-white{--tw-text-opacity:1;color:rgb(255 255 255 / var(--tw-text-opacity, 1))}.text-accentGreen{--tw-text-opacity:1;color:rgb(16 185 129 / var(--tw-text-opacity, 1))}.text-brand{--tw-text-opacity:1;color:rgb(79 126 248 / var(--tw-text-opacity, 1))}.text-gray-300{--tw-text-opacity:1;color:rgb(209 213 219 / var(--tw-text-opacity, 1))}.text-textGray{--tw-text-opacity:1;color:rgb(139 147 167 / var(--tw-text-opacity, 1))}.text-yellow-200{--tw-text-opacity:1;color:rgb(254 240 138 / var(--tw-text-opacity, 1))}.underline{-webkit-text-decoration-line:underline;text-decoration-line:underline}.antialiased{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}.opacity-60{opacity:0.6}.shadow-lg{--tw-shadow:0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);--tw-shadow-colored:0 10px 15px -3px var(--tw-shadow-color), 0 4px 6px -4px var(--tw-shadow-color);box-shadow:var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow)}.shadow-brand\/20{--tw-shadow-color:rgb(79 126 248 / 0.2);--tw-shadow:var(--tw-shadow-colored)}.transition-all{transition-property:all;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms}.transition-colors{transition-property:color, background-color, border-color, fill, stroke, -webkit-text-decoration-color;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke;transition-property:color, background-color, border-color, text-decoration-color, fill, stroke, -webkit-text-decoration-color;transition-timing-function:cubic-bezier(0.4, 0, 0.2, 1);transition-duration:150ms}.hover\:border-textGray:hover{--tw-border-opacity:1;border-color:rgb(139 147 167 / var(--tw-border-opacity, 1))}.hover\:bg-brand\/10:hover{background-color:rgb(79 126 248 / 0.1)}.hover\:bg-brand\/90:hover{background-color:rgb(79 126 248 / 0.9)}.hover\:bg-cardBg:hover{--tw-bg-opacity:1;background-color:rgb(30 37 53 / var(--tw-bg-opacity, 1))}.hover\:bg-white\/5:hover{background-color:rgb(255 255 255 / 0.05)}.hover\:text-white:hover{--tw-text-opacity:1;color:rgb(255 255 255 / var(--tw-text-opacity, 1))}.hover\:underline:hover{-webkit-text-decoration-line:underline;text-decoration-line:underline}.hover\:opacity-100:hover{opacity:1}.active\:scale-95:active{--tw-scale-x:.95;--tw-scale-y:.95;transform:translate(var(--tw-translate-x), var(--tw-translate-y)) rotate(var(--tw-rotate)) skewX(var(--tw-skew-x)) skewY(var(--tw-skew-y)) scaleX(var(--tw-scale-x)) scaleY(var(--tw-scale-y))}@media (min-width: 768px){.md\:grid-cols-2{grid-template-columns:repeat(2, minmax(0, 1fr))}}@media (min-width: 1024px){.lg\:col-span-2{grid-column:span 2 / span 2}.lg\:block{display:block}.lg\:grid-cols-3{grid-template-columns:repeat(3, minmax(0, 1fr))}}</style></head>
+<body class="bg-darkBg text-white font-sans antialiased">
+
+    <!-- Header & Sidebar Mockup -->
+    <header id="header" class="h-16 border-b border-border flex items-center justify-between px-8 bg-darkBg sticky top-0 z-50">
+        <div class="flex items-center gap-4">
+            <div class="text-brand font-bold text-xl flex items-center gap-2">
+                <svg class="svg-inline--fa fa-rocket" aria-hidden="true" focusable="false" data-prefix="fas" data-icon="rocket" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" data-fa-i2svg=""><path fill="currentColor" d="M156.6 384.9L125.7 354c-8.5-8.5-11.5-20.8-7.7-32.2c3-8.9 7-20.5 11.8-33.8L24 288c-8.6 0-16.6-4.6-20.9-12.1s-4.2-16.7 .2-24.1l52.5-88.5c13-21.9 36.5-35.3 61.9-35.3l82.3 0c2.4-4 4.8-7.7 7.2-11.3C289.1-4.1 411.1-8.1 483.9 5.3c11.6 2.1 20.6 11.2 22.8 22.8c13.4 72.9 9.3 194.8-111.4 276.7c-3.5 2.4-7.3 4.8-11.3 7.2v82.3c0 25.4-13.4 49-35.3 61.9l-88.5 52.5c-7.4 4.4-16.6 4.5-24.1 .2s-12.1-12.2-12.1-20.9V380.8c-14.1 4.9-26.4 8.9-35.7 11.9c-11.2 3.6-23.4 .5-31.8-7.8zM384 168a40 40 0 1 0 0-80 40 40 0 1 0 0 80z"></path></svg><!-- <i class="fa-solid fa-rocket"></i> Font Awesome fontawesome.com --> AstraReach
+            </div>
+            <div class="h-6 w-px bg-border mx-2"></div>
+            <nav class="flex items-center gap-2 text-sm">
+                <span class="text-textGray">Campaigns</span>
+                <svg class="svg-inline--fa fa-chevron-right text-[10px] text-textGray" aria-hidden="true" focusable="false" data-prefix="fas" data-icon="chevron-right" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 512" data-fa-i2svg=""><path fill="currentColor" d="M310.6 233.4c12.5 12.5 12.5 32.8 0 45.3l-192 192c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3L242.7 256 73.4 86.6c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0l192 192z"></path></svg><!-- <i class="fa-solid fa-chevron-right text-[10px] text-textGray"></i> Font Awesome fontawesome.com -->
+                <span class="text-white">New Campaign</span>
+            </nav>
+        </div>
+        <div class="flex items-center gap-4">
+            <div class="flex items-center gap-3 bg-cardBg px-3 py-1.5 rounded-full border border-border">
+                <img src="https://storage.googleapis.com/uxpilot-auth.appspot.com/avatars/avatar-2.jpg" class="w-6 h-6 rounded-full" alt="User">
+                <span class="text-sm font-medium">Alex Rivera</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex min-h-[calc(1024px-64px)]">
+        <!-- Sidebar -->
+        <aside id="sidebar" class="w-64 border-r border-border p-6 hidden lg:block">
+            <div class="space-y-6">
+                <div class="space-y-1">
+                    <div class="flex items-center gap-3 p-3 text-textGray hover:bg-cardBg rounded-lg cursor-pointer">
+                        <svg class="svg-inline--fa fa-chart-line w-5" aria-hidden="true" focusable="false" data-prefix="fas" data-icon="chart-line" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" data-fa-i2svg=""><path fill="currentColor" d="M64 64c0-17.7-14.3-32-32-32S0 46.3 0 64V400c0 44.2 35.8 80 80 80H480c17.7 0 32-14.3 32-32s-14.3-32-32-32H80c-8.8 0-16-7.2-16-16V64zm406.6 86.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L320 210.7l-57.4-57.4c-12.5-12.5-32.8-12.5-45.3 0l-112 112c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0L240 221.3l57.4 57.4c12.5 12.5 32.8 12.5 45.3 0l128-128z"></path></svg><!-- <i class="fa-solid fa-chart-line w-5"></i> Font Awesome fontawesome.com --> Dashboard
+                    </div>
+                    <div class="flex items-center gap-3 p-3 bg-brand/10 text-brand rounded-lg cursor-pointer">
+                        <svg class="svg-inline--fa fa-bullhorn w-5" aria-hidden="true" focusable="false" data-prefix="fas" data-icon="bullhorn" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" data-fa-i2svg=""><path fill="currentColor" d="M480 32c0-12.9-7.8-24.6-19.8-29.6s-25.7-2.2-34.9 6.9L381.7 53c-48 48-113.1 75-181 75H192 160 64c-35.3 0-64 28.7-64 64v96c0 35.3 28.7 64 64 64l0 128c0 17.7 14.3 32 32 32h64c17.7 0 32-14.3 32-32V352l8.7 0c67.9 0 133 27 181 75l43.6 43.6c9.2 9.2 22.9 11.9 34.9 6.9s19.8-16.6 19.8-29.6V300.4c18.6-8.8 32-32.5 32-60.4s-13.4-51.6-32-60.4V32zm-64 76.7V240 371.3C357.2 317.8 280.5 288 200.7 288H192V192h8.7c79.8 0 156.5-29.8 215.3-83.3z"></path></svg><!-- <i class="fa-solid fa-bullhorn w-5"></i> Font Awesome fontawesome.com --> Campaigns
+                    </div>
+                    <div class="flex items-center gap-3 p-3 text-textGray hover:bg-cardBg rounded-lg cursor-pointer">
+                        <svg class="svg-inline--fa fa-users w-5" aria-hidden="true" focusable="false" data-prefix="fas" data-icon="users" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512" data-fa-i2svg=""><path fill="currentColor" d="M144 0a80 80 0 1 1 0 160A80 80 0 1 1 144 0zM512 0a80 80 0 1 1 0 160A80 80 0 1 1 512 0zM0 298.7C0 239.8 47.8 192 106.7 192h42.7c15.9 0 31 3.5 44.6 9.7c-1.3 7.2-1.9 14.7-1.9 22.3c0 38.2 16.8 72.5 43.3 96c-.2 0-.4 0-.7 0H21.3C9.6 320 0 310.4 0 298.7zM405.3 320c-.2 0-.4 0-.7 0c26.6-23.5 43.3-57.8 43.3-96c0-7.6-.7-15-1.9-22.3c13.6-6.3 28.7-9.7 44.6-9.7h42.7C592.2 192 640 239.8 640 298.7c0 11.8-9.6 21.3-21.3 21.3H405.3zM224 224a96 96 0 1 1 192 0 96 96 0 1 1 -192 0zM128 485.3C128 411.7 187.7 352 261.3 352H378.7C452.3 352 512 411.7 512 485.3c0 14.7-11.9 26.7-26.7 26.7H154.7c-14.7 0-26.7-11.9-26.7-26.7z"></path></svg><!-- <i class="fa-solid fa-users w-5"></i> Font Awesome fontawesome.com --> Contacts
+                    </div>
+                    <div class="flex items-center gap-3 p-3 text-textGray hover:bg-cardBg rounded-lg cursor-pointer">
+                        <svg class="svg-inline--fa fa-envelope w-5" aria-hidden="true" focusable="false" data-prefix="fas" data-icon="envelope" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" data-fa-i2svg=""><path fill="currentColor" d="M48 64C21.5 64 0 85.5 0 112c0 15.1 7.1 29.3 19.2 38.4L236.8 313.6c11.4 8.5 27 8.5 38.4 0L492.8 150.4c12.1-9.1 19.2-23.3 19.2-38.4c0-26.5-21.5-48-48-48H48zM0 176V384c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V176L294.4 339.2c-22.8 17.1-54 17.1-76.8 0L0 176z"></path></svg><!-- <i class="fa-solid fa-envelope w-5"></i> Font Awesome fontawesome.com --> Templates
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <div class="flex-1 overflow-y-auto p-8">
+            <div class="wizard-container">
+                
+                <!-- Wizard Progress Bar -->
+                <section id="wizard-progress" class="mb-12">
+                    <div class="flex items-start justify-between">
+                        <!-- Step 1 -->
+                        <div class="flex flex-col items-center gap-2 z-10">
+                            <div class="w-10 h-10 rounded-full bg-brand flex items-center justify-center text-white font-bold border-4 border-darkBg">1</div>
+                            <span class="text-xs font-semibold text-brand">Details</span>
+                        </div>
+                        <div class="step-line active-step-line -mx-10"></div>
+                        <!-- Step 2 -->
+                        <div class="flex flex-col items-center gap-2 z-10">
+                            <div class="w-10 h-10 rounded-full bg-border flex items-center justify-center text-textGray font-bold border-4 border-darkBg">2</div>
+                            <span class="text-xs font-semibold text-textGray">Contacts</span>
+                        </div>
+                        <div class="step-line -mx-10"></div>
+                        <!-- Step 3 -->
+                        <div class="flex flex-col items-center gap-2 z-10">
+                            <div class="w-10 h-10 rounded-full bg-border flex items-center justify-center text-textGray font-bold border-4 border-darkBg">3</div>
+                            <span class="text-xs font-semibold text-textGray">Template</span>
+                        </div>
+                        <div class="step-line -mx-10"></div>
+                        <!-- Step 4 -->
+                        <div class="flex flex-col items-center gap-2 z-10">
+                            <div class="w-10 h-10 rounded-full bg-border flex items-center justify-center text-textGray font-bold border-4 border-darkBg">4</div>
+                            <span class="text-xs font-semibold text-textGray">Schedule</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Wizard Sections Container -->
+                <div id="wizard-steps-container">
+                    
+                    <!-- STEP 1: Campaign Details (Active by default) -->
+                    <section id="step-1" class="block">
+                        <div class="max-w-[640px] mx-auto bg-cardBg border border-border rounded-[12px] p-8">
+                            <h2 class="text-[18px] font-semibold mb-6">Name your campaign</h2>
+                            
+                            <div class="space-y-6">
+                                <div class="flex flex-col gap-2">
+                                    <label class="text-sm text-textGray">Campaign name</label>
+                                    <input type="text" placeholder="e.g. India SaaS Q2 Outreach 2026" class="text-lg py-4">
+                                </div>
+
+                                <div class="flex flex-col gap-2">
+                                    <label class="text-sm text-textGray">Description (Optional)</label>
+                                    <textarea placeholder="Internal notes about this campaign's goal or strategy" class="h-20 resize-none"></textarea>
+                                </div>
+
+                                <div class="p-4 bg-darkBg/50 rounded-lg border border-border">
+                                    <div class="flex items-center justify-between mb-2">
+                                        <div class="flex items-center gap-2">
+                                            <span class="font-medium">Enable AI business research before sending</span>
+                                            <span class="text-[10px] bg-accentGreen/20 text-accentGreen px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Recommended</span>
+                                        </div>
+                                        <div class="toggle-switch on" onclick="this.classList.toggle('on')">
+                                            <div class="toggle-dot"></div>
+                                        </div>
+                                    </div>
+                                    <p class="text-[13px] text-textGray">UX Pilot will research each contact's company before writing personalized emails. Adds ~30 seconds per contact.</p>
+                                </div>
+
+                                <div class="flex flex-col gap-2">
+                                    <label class="text-sm text-textGray">Booking URL</label>
+                                    <div class="relative">
+                                        <svg class="svg-inline--fa fa-link absolute left-4 top-1/2 -translate-y-1/2 text-textGray" aria-hidden="true" focusable="false" data-prefix="fas" data-icon="link" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512" data-fa-i2svg=""><path fill="currentColor" d="M579.8 267.7c56.5-56.5 56.5-148 0-204.5c-50-50-128.8-56.5-186.3-15.4l-1.6 1.1c-14.4 10.3-17.7 30.3-7.4 44.6s30.3 17.7 44.6 7.4l1.6-1.1c32.1-22.9 76-19.3 103.8 8.6c31.5 31.5 31.5 82.5 0 114L422.3 334.8c-31.5 31.5-82.5 31.5-114 0c-27.9-27.9-31.5-71.8-8.6-103.8l1.1-1.6c10.3-14.4 6.9-34.4-7.4-44.6s-34.4-6.9-44.6 7.4l-1.1 1.6C206.5 251.2 213 330 263 380c56.5 56.5 148 56.5 204.5 0L579.8 267.7zM60.2 244.3c-56.5 56.5-56.5 148 0 204.5c50 50 128.8 56.5 186.3 15.4l1.6-1.1c14.4-10.3 17.7-30.3 7.4-44.6s-30.3-17.7-44.6-7.4l-1.6 1.1c-32.1 22.9-76 19.3-103.8-8.6C74 372 74 321 105.5 289.5L217.7 177.2c31.5-31.5 82.5-31.5 114 0c27.9 27.9 31.5 71.8 8.6 103.9l-1.1 1.6c-10.3 14.4-6.9 34.4 7.4 44.6s34.4 6.9 44.6-7.4l1.1-1.6C433.5 260.8 427 182 377 132c-56.5-56.5-148-56.5-204.5 0L60.2 244.3z"></path></svg><!-- <i class="fa-solid fa-link absolute left-4 top-1/2 -translate-y-1/2 text-textGray"></i> Font Awesome fontawesome.com -->
+                                        <input type="text" value="https://astrabytesolutions.com/book-call" class="w-full pl-10">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mt-10 flex justify-end">
+                                <button onclick="showStep(2)" class="bg-brand hover:bg-brand/90 px-6 py-3 rounded-lg font-semibold transition-colors flex items-center gap-2">
+                                    Next: Select Contacts <svg class="svg-inline--fa fa-arrow-right" aria-hidden="true" focusable="false" data-prefix="fas" data-icon="arrow-right" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" data-fa-i2svg=""><path fill="currentColor" d="M438.6 278.6c12.5-12.5 12.5-32.8 0-45.3l-160-160c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L338.8 224 32 224c-17.7 0-32 14.3-32 32s14.3 32 32 32l306.7 0L233.4 393.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0l160-160z"></path></svg><!-- <i class="fa-solid fa-arrow-right"></i> Font Awesome fontawesome.com -->
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- STEP 2: Select Contacts (Hidden initially) -->
+                    <section id="step-2" class="hidden">
+                        <div class="max-w-4xl mx-auto">
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                                <div id="option-db" class="bg-brand/5 border-2 border-brand rounded-xl p-6 cursor-pointer hover:bg-brand/10 transition-all">
+                                    <div class="w-12 h-12 bg-brand/20 text-brand rounded-lg flex items-center justify-center mb-4 text-xl">
+                                        <svg class="svg-inline--fa fa-database" aria-hidden="true" focusable="false" data-prefix="fas" data-icon="database" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" data-fa-i2svg=""><path fill="currentColor" d="M448 80v48c0 44.2-100.3 80-224 80S0 172.2 0 128V80C0 35.8 100.3 0 224 0S448 35.8 448 80zM393.2 214.7c20.8-7.4 39.9-16.9 54.8-28.6V288c0 44.2-100.3 80-224 80S0 332.2 0 288V186.1c14.9 11.8 34 21.2 54.8 28.6C99.7 230.7 159.5 240 224 240s124.3-9.3 169.2-25.3zM0 346.1c14.9 11.8 34 21.2 54.8 28.6C99.7 390.7 159.5 400 224 400s124.3-9.3 169.2-25.3c20.8-7.4 39.9-16.9 54.8-28.6V432c0 44.2-100.3 80-224 80S0 476.2 0 432V346.1z"></path></svg><!-- <i class="fa-solid fa-database"></i> Font Awesome fontawesome.com -->
+                                    </div>
+                                    <h3 class="text-lg font-medium mb-2">Choose from database</h3>
+                                    <p class="text-textGray text-sm">Filter from your 1.2M contacts database or pick a saved segment.</p>
+                                </div>
+                                <div id="option-upload" class="bg-cardBg border border-border rounded-xl p-6 cursor-pointer hover:border-textGray transition-all">
+                                    <div class="w-12 h-12 bg-white/5 text-textGray rounded-lg flex items-center justify-center mb-4 text-xl">
+                                        <svg class="svg-inline--fa fa-cloud-arrow-up" aria-hidden="true" focusable="false" data-prefix="fas" data-icon="cloud-arrow-up" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512" data-fa-i2svg=""><path fill="currentColor" d="M144 480C64.5 480 0 415.5 0 336c0-62.8 40.2-116.2 96.2-135.9c-.1-2.7-.2-5.4-.2-8.1c0-88.4 71.6-160 160-160c59.3 0 111 32.2 138.7 80.2C409.9 102 428.3 96 448 96c53 0 96 43 96 96c0 12.2-2.3 23.8-6.4 34.6C596 238.4 640 290.1 640 352c0 70.7-57.3 128-128 128H144zm79-217c-9.4 9.4-9.4 24.6 0 33.9s24.6 9.4 33.9 0l39-39V392c0 13.3 10.7 24 24 24s24-10.7 24-24V257.9l39 39c9.4 9.4 24.6 9.4 33.9 0s9.4-24.6 0-33.9l-80-80c-9.4-9.4-24.6-9.4-33.9 0l-80 80z"></path></svg><!-- <i class="fa-solid fa-cloud-arrow-up"></i> Font Awesome fontawesome.com -->
+                                    </div>
+                                    <h3 class="text-lg font-medium mb-2">Upload new list</h3>
+                                    <p class="text-textGray text-sm">Upload an .xlsx or .csv file — AI will map columns automatically.</p>
+                                </div>
+                            </div>
+
+                            <div id="segment-selector" class="bg-cardBg border border-border rounded-xl p-8 mb-8">
+                                <div class="flex items-center justify-between mb-6">
+                                    <h4 class="font-semibold">Select a segment</h4>
+                                    <a href="#" class="text-brand text-sm hover:underline">or choose contacts manually</a>
+                                </div>
+                                <select class="w-full mb-6">
+                                    <option>SaaS Founders - India - Series A/B</option>
+                                    <option>Marketing Directors - Enterprise US</option>
+                                </select>
+
+                                <div class="bg-brand/10 border border-brand/20 rounded-lg p-4 flex items-center justify-between mb-6">
+                                    <div class="flex items-center gap-3">
+                                        <div class="w-10 h-10 bg-brand/20 rounded-full flex items-center justify-center text-brand">
+                                            <svg class="svg-inline--fa fa-users-viewfinder" aria-hidden="true" focusable="false" data-prefix="fas" data-icon="users-viewfinder" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 512" data-fa-i2svg=""><path fill="currentColor" d="M48 48h88c13.3 0 24-10.7 24-24s-10.7-24-24-24H32C14.3 0 0 14.3 0 32V136c0 13.3 10.7 24 24 24s24-10.7 24-24V48zM175.8 224a48 48 0 1 0 0-96 48 48 0 1 0 0 96zm-26.5 32C119.9 256 96 279.9 96 309.3c0 14.7 11.9 26.7 26.7 26.7h56.1c8-34.1 32.8-61.7 65.2-73.6c-7.5-4.1-16.2-6.4-25.3-6.4H149.3zm368 80c14.7 0 26.7-11.9 26.7-26.7c0-29.5-23.9-53.3-53.3-53.3H421.3c-9.2 0-17.8 2.3-25.3 6.4c32.4 11.9 57.2 39.5 65.2 73.6h56.1zm-89.4 0c-8.6-24.3-29.9-42.6-55.9-47c-3.9-.7-7.9-1-12-1H280c-4.1 0-8.1 .3-12 1c-26 4.4-47.3 22.7-55.9 47c-2.7 7.5-4.1 15.6-4.1 24c0 13.3 10.7 24 24 24H408c13.3 0 24-10.7 24-24c0-8.4-1.4-16.5-4.1-24zM464 224a48 48 0 1 0 0-96 48 48 0 1 0 0 96zm-80-32a64 64 0 1 0 -128 0 64 64 0 1 0 128 0zM504 48h88v88c0 13.3 10.7 24 24 24s24-10.7 24-24V32c0-17.7-14.3-32-32-32H504c-13.3 0-24 10.7-24 24s10.7 24 24 24zM48 464V376c0-13.3-10.7-24-24-24s-24 10.7-24 24V480c0 17.7 14.3 32 32 32H136c13.3 0 24-10.7 24-24s-10.7-24-24-24H48zm456 0c-13.3 0-24 10.7-24 24s10.7 24 24 24H608c17.7 0 32-14.3 32-32V376c0-13.3-10.7-24-24-24s-24 10.7-24 24v88H504z"></path></svg><!-- <i class="fa-solid fa-users-viewfinder"></i> Font Awesome fontawesome.com -->
+                                        </div>
+                                        <div>
+                                            <div class="font-semibold">SaaS Founders - India</div>
+                                            <div class="text-xs text-textGray">24,816 contacts matching filters</div>
+                                        </div>
+                                    </div>
+                                    <div class="text-brand font-bold">Selected ✓</div>
+                                </div>
+
+                                <div class="overflow-hidden rounded-lg border border-border">
+                                    <table class="w-full text-left text-sm">
+                                        <thead class="bg-darkBg text-textGray">
+                                            <tr>
+                                                <th class="p-3">Name</th>
+                                                <th class="p-3">Company</th>
+                                                <th class="p-3">Industry</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-border">
+                                            <tr><td class="p-3">Rohan Mehta</td><td class="p-3">CloudScale AI</td><td class="p-3 text-textGray">Software</td></tr>
+                                            <tr><td class="p-3">Ananya Iyer</td><td class="p-3">FinStream</td><td class="p-3 text-textGray">Fintech</td></tr>
+                                            <tr><td class="p-3">Vikram Singh</td><td class="p-3">DataPulse</td><td class="p-3 text-textGray">Big Data</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center justify-between">
+                                <button onclick="showStep(1)" class="text-textGray hover:text-white font-medium flex items-center gap-2">
+                                    <svg class="svg-inline--fa fa-arrow-left" aria-hidden="true" focusable="false" data-prefix="fas" data-icon="arrow-left" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" data-fa-i2svg=""><path fill="currentColor" d="M9.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.2 288 416 288c17.7 0 32-14.3 32-32s-14.3-32-32-32l-306.7 0L214.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"></path></svg><!-- <i class="fa-solid fa-arrow-left"></i> Font Awesome fontawesome.com --> Back
+                                </button>
+                                <button onclick="showStep(3)" class="bg-brand hover:bg-brand/90 px-6 py-3 rounded-lg font-semibold transition-colors flex items-center gap-2">
+                                    Next: Template <svg class="svg-inline--fa fa-arrow-right" aria-hidden="true" focusable="false" data-prefix="fas" data-icon="arrow-right" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" data-fa-i2svg=""><path fill="currentColor" d="M438.6 278.6c12.5-12.5 12.5-32.8 0-45.3l-160-160c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L338.8 224 32 224c-17.7 0-32 14.3-32 32s14.3 32 32 32l306.7 0L233.4 393.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0l160-160z"></path></svg><!-- <i class="fa-solid fa-arrow-right"></i> Font Awesome fontawesome.com -->
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- STEP 3: Email Template (Hidden initially) -->
+                    <section id="step-3" class="hidden">
+                        <div class="max-w-5xl mx-auto space-y-8">
+                            <div>
+                                <div class="flex items-center justify-between mb-4">
+                                    <h2 class="text-xl font-semibold">Select a template</h2>
+                                    <a href="#" class="text-brand text-sm hover:underline"><svg class="svg-inline--fa fa-plus mr-1" aria-hidden="true" focusable="false" data-prefix="fas" data-icon="plus" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" data-fa-i2svg=""><path fill="currentColor" d="M256 80c0-17.7-14.3-32-32-32s-32 14.3-32 32V224H48c-17.7 0-32 14.3-32 32s14.3 32 32 32H192V432c0 17.7 14.3 32 32 32s32-14.3 32-32V288H400c17.7 0 32-14.3 32-32s-14.3-32-32-32H256V80z"></path></svg><!-- <i class="fa-solid fa-plus mr-1"></i> Font Awesome fontawesome.com --> Create new template</a>
+                                </div>
+                                <div class="flex gap-4 overflow-x-auto pb-4">
+                                    <div class="min-w-[280px] border-2 border-brand bg-cardBg rounded-xl p-4 cursor-pointer">
+                                        <div class="text-sm font-semibold mb-3">SaaS Founder Outreach</div>
+                                        <div class="bg-darkBg h-32 rounded p-2 text-[10px] text-textGray overflow-hidden">
+                                            Hi {{first_name}}, I saw that {{company}} recently...
+                                        </div>
+                                    </div>
+                                    <div class="min-w-[280px] border border-border bg-cardBg rounded-xl p-4 cursor-pointer opacity-60 hover:opacity-100">
+                                        <div class="text-sm font-semibold mb-3">Follow-up: Value Add</div>
+                                        <div class="bg-darkBg h-32 rounded p-2 text-[10px] text-textGray overflow-hidden">
+                                            Thought you'd find this case study interesting...
+                                        </div>
+                                    </div>
+                                    <div class="min-w-[280px] border border-border bg-cardBg rounded-xl p-4 cursor-pointer opacity-60 hover:opacity-100">
+                                        <div class="text-sm font-semibold mb-3">Demo Request</div>
+                                        <div class="bg-darkBg h-32 rounded p-2 text-[10px] text-textGray overflow-hidden">
+                                            Quick question about your current workflow...
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="bg-cardBg border border-border rounded-xl p-8">
+                                <h3 class="text-sm font-bold text-textGray uppercase mb-6 tracking-widest">Variable Preview: Rohan Mehta</h3>
+                                <div class="space-y-4">
+                                    <div class="flex gap-4 border-b border-border pb-4">
+                                        <span class="text-textGray w-16">Subject:</span>
+                                        <span class="font-medium">Scale CloudScale AI's infrastructure in Q3?</span>
+                                    </div>
+                                    <div class="space-y-4 text-sm leading-relaxed text-gray-300">
+                                        <p>Hi Rohan,</p>
+                                        <p>I was researching <span class="bg-yellow-500/20 text-yellow-200 px-1 rounded">CloudScale AI</span> and noticed your recent expansion into the Southeast Asian market.</p>
+                                        <p>Given your focus on <span class="bg-yellow-500/20 text-yellow-200 px-1 rounded">enterprise cloud automation</span>, I thought you might be interested in how we've helped similar firms reduce latency by 40%.</p>
+                                        <p>Do you have 10 minutes next Tuesday?</p>
+                                        <p>Best,<br>Alex</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="flex items-center justify-between">
+                                <button onclick="showStep(2)" class="text-textGray hover:text-white font-medium flex items-center gap-2">
+                                    <svg class="svg-inline--fa fa-arrow-left" aria-hidden="true" focusable="false" data-prefix="fas" data-icon="arrow-left" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" data-fa-i2svg=""><path fill="currentColor" d="M9.4 233.4c-12.5 12.5-12.5 32.8 0 45.3l160 160c12.5 12.5 32.8 12.5 45.3 0s12.5-32.8 0-45.3L109.2 288 416 288c17.7 0 32-14.3 32-32s-14.3-32-32-32l-306.7 0L214.6 118.6c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0l-160 160z"></path></svg><!-- <i class="fa-solid fa-arrow-left"></i> Font Awesome fontawesome.com --> Back
+                                </button>
+                                <button onclick="showStep(4)" class="bg-brand hover:bg-brand/90 px-6 py-3 rounded-lg font-semibold transition-colors flex items-center gap-2">
+                                    Next: Schedule <svg class="svg-inline--fa fa-arrow-right" aria-hidden="true" focusable="false" data-prefix="fas" data-icon="arrow-right" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" data-fa-i2svg=""><path fill="currentColor" d="M438.6 278.6c12.5-12.5 12.5-32.8 0-45.3l-160-160c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3L338.8 224 32 224c-17.7 0-32 14.3-32 32s14.3 32 32 32l306.7 0L233.4 393.4c-12.5 12.5-12.5 32.8 0 45.3s32.8 12.5 45.3 0l160-160z"></path></svg><!-- <i class="fa-solid fa-arrow-right"></i> Font Awesome fontawesome.com -->
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- STEP 4: Schedule & Launch (Hidden initially) -->
+                    <section id="step-4" class="hidden">
+                        <div class="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+                            <!-- Left: Settings -->
+                            <div class="lg:col-span-2 space-y-6">
+                                <div class="bg-cardBg border border-border rounded-xl p-8">
+                                    <h3 class="text-lg font-semibold mb-6">Schedule Settings</h3>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                                        <div class="flex flex-col gap-2">
+                                            <label class="text-sm text-textGray">Send time</label>
+                                            <div class="relative">
+                                                <svg class="svg-inline--fa fa-clock absolute left-4 top-1/2 -translate-y-1/2 text-textGray" aria-hidden="true" focusable="false" data-prefix="far" data-icon="clock" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" data-fa-i2svg=""><path fill="currentColor" d="M464 256A208 208 0 1 1 48 256a208 208 0 1 1 416 0zM0 256a256 256 0 1 0 512 0A256 256 0 1 0 0 256zM232 120V256c0 8 4 15.5 10.7 20l96 64c11 7.4 25.9 4.4 33.3-6.7s4.4-25.9-6.7-33.3L280 243.2V120c0-13.3-10.7-24-24-24s-24 10.7-24 24z"></path></svg><!-- <i class="fa-regular fa-clock absolute left-4 top-1/2 -translate-y-1/2 text-textGray"></i> Font Awesome fontawesome.com -->
+                                                <input type="text" value="09:00 AM" class="w-full pl-10">
+                                            </div>
+                                        </div>
+                                        <div class="flex flex-col gap-2">
+                                            <label class="text-sm text-textGray">Timezone</label>
+                                            <select class="w-full">
+                                                <option>Asia/Kolkata (IST)</option>
+                                                <option>UTC (GMT)</option>
+                                                <option>America/New_York (EST)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div class="p-4 bg-darkBg/50 rounded-lg border border-border mb-8">
+                                        <div class="flex items-center justify-between">
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-sm text-textGray">Daily sending limit</span>
+                                                <span class="font-bold">50 emails/day</span>
+                                                <svg class="svg-inline--fa fa-lock text-xs text-textGray ml-1 cursor-help" aria-labelledby="svg-inline--fa-title-iZh3GHKHmeJS" data-prefix="fas" data-icon="lock" role="img" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 448 512" data-fa-i2svg=""><title id="svg-inline--fa-title-iZh3GHKHmeJS">Controlled limit to protect sender reputation</title><path fill="currentColor" d="M144 144v48H304V144c0-44.2-35.8-80-80-80s-80 35.8-80 80zM80 192V144C80 64.5 144.5 0 224 0s144 64.5 144 144v48h16c35.3 0 64 28.7 64 64V448c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V256c0-35.3 28.7-64 64-64H80z"></path></svg><!-- <i class="fa-solid fa-lock text-xs text-textGray ml-1 cursor-help" title="Controlled limit to protect sender reputation"></i> Font Awesome fontawesome.com -->
+                                            </div>
+                                            <span class="text-[11px] text-brand font-bold underline cursor-pointer">Request Increase</span>
+                                        </div>
+                                    </div>
+
+                                    <div class="space-y-4">
+                                        <label class="text-sm text-textGray">Start sending</label>
+                                        <div class="flex flex-col gap-3">
+                                            <label class="flex items-center gap-3 p-4 border border-brand bg-brand/5 rounded-lg cursor-pointer">
+                                                <input type="radio" name="start" checked="" class="w-4 h-4 text-brand">
+                                                <div>
+                                                    <div class="font-medium">Start immediately</div>
+                                                    <div class="text-xs text-textGray">Today at next available window</div>
+                                                </div>
+                                            </label>
+                                            <label class="flex items-center gap-3 p-4 border border-border rounded-lg cursor-pointer hover:bg-white/5">
+                                                <input type="radio" name="start" class="w-4 h-4 text-brand">
+                                                <div>
+                                                    <div class="font-medium">Schedule for specific date</div>
+                                                    <div class="text-xs text-textGray">Pick a future date to begin</div>
+                                                </div>
+                                            </label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Right: Summary -->
+                            <div class="space-y-6">
+                                <div class="bg-cardBg border border-border rounded-xl p-8 sticky top-24">
+                                    <h3 class="text-lg font-semibold mb-6">Review before launching</h3>
+                                    <div class="space-y-4 mb-8">
+                                        <div class="flex justify-between items-center text-sm">
+                                            <span class="text-textGray">Campaign</span>
+                                            <span class="font-medium">India SaaS Q2 Outreach</span>
+                                        </div>
+                                        <div class="flex justify-between items-center text-sm">
+                                            <span class="text-textGray">Contacts</span>
+                                            <span class="font-medium">24,816</span>
+                                        </div>
+                                        <div class="flex justify-between items-center text-sm">
+                                            <span class="text-textGray">Template</span>
+                                            <span class="font-medium">SaaS Founder Outreach</span>
+                                        </div>
+                                        <div class="flex justify-between items-center text-sm">
+                                            <span class="text-textGray">Daily limit</span>
+                                            <span class="font-medium">50/day</span>
+                                        </div>
+                                        <div class="flex justify-between items-center text-sm">
+                                            <span class="text-textGray">Est. completion</span>
+                                            <span class="font-medium text-brand">~496 days</span>
+                                        </div>
+                                        <div class="flex justify-between items-center text-sm">
+                                            <span class="text-textGray">AI research</span>
+                                            <span class="text-accentGreen font-bold">Enabled ✓</span>
+                                        </div>
+                                    </div>
+
+                                    <button class="w-full bg-brand hover:bg-brand/90 py-4 rounded-xl font-bold text-lg mb-4 shadow-lg shadow-brand/20 transition-all active:scale-95">
+                                        🚀 Launch Campaign
+                                    </button>
+                                    <p class="text-center text-xs text-textGray mb-4">Emails will begin sending at 9:00 AM IST</p>
+                                    <button class="w-full py-3 border border-border rounded-xl text-textGray hover:text-white transition-colors">
+                                        Save as Draft
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        function showStep(stepNumber) {
+            // Hide all steps
+            document.querySelectorAll('#wizard-steps-container > section').forEach(el => el.classList.add('hidden'));
+            // Show target step
+            document.getElementById(`step-${stepNumber}`).classList.remove('hidden');
+            
+            // Update progress bar
+            const progressItems = document.querySelectorAll('#wizard-progress > div.flex-col');
+            const lines = document.querySelectorAll('.step-line');
+            
+            progressItems.forEach((item, index) => {
+                const circle = item.querySelector('div');
+                const label = item.querySelector('span');
+                const currentStep = index + 1;
+                
+                if (currentStep < stepNumber) {
+                    // Completed
+                    circle.innerHTML = '<i class="fa-solid fa-check"></i>';
+                    circle.className = 'w-10 h-10 rounded-full bg-accentGreen flex items-center justify-center text-white font-bold border-4 border-darkBg';
+                    label.className = 'text-xs font-semibold text-accentGreen';
+                    if(lines[index-1]) lines[index-1].classList.add('active-step-line');
+                } else if (currentStep === stepNumber) {
+                    // Active
+                    circle.innerHTML = currentStep;
+                    circle.className = 'w-10 h-10 rounded-full bg-brand flex items-center justify-center text-white font-bold border-4 border-darkBg';
+                    label.className = 'text-xs font-semibold text-brand';
+                    if(lines[index-1]) lines[index-1].classList.add('active-step-line');
+                } else {
+                    // Upcoming
+                    circle.innerHTML = currentStep;
+                    circle.className = 'w-10 h-10 rounded-full bg-border flex items-center justify-center text-textGray font-bold border-4 border-darkBg';
+                    label.className = 'text-xs font-semibold text-textGray';
+                    if(lines[index-1]) lines[index-1].classList.remove('active-step-line');
+                }
+            });
+            
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+    </script>
+
+  <script>
+    (function() {
+      function blockEvent(e) {
+        if (!e) return false;
+        if (typeof e.preventDefault === 'function') e.preventDefault();
+        if (typeof e.stopPropagation === 'function') e.stopPropagation();
+        if (typeof e.stopImmediatePropagation === 'function') e.stopImmediatePropagation();
+        return false;
+      }
+
+      // Block all anchor navigations (including http(s), mailto, tel, hash, fragments)
+      document.addEventListener('click', function(e) {
+        var a = e.target && e.target.closest ? e.target.closest('a[href]') : null;
+        if (!a) return;
+        return blockEvent(e);
+      }, true);
+
+      // Neutralize programmatic navigation attempts
+      try { window.open = function() { return null }; } catch (_) {}
+      try {
+        var noop = function(){};
+        history.pushState = noop;
+        history.replaceState = noop;
+      } catch (_) {}
+      try {
+        if (window.location) {
+          window.location.assign = function(){};
+          window.location.replace = function(){};
+        }
+      } catch (_) {}
+    })();
+  </script>
+<script>
+(function() {
+  function _uxpResizeCharts() {
+    if (window.Plotly) {
+      document.querySelectorAll('.plot-container.plotly').forEach(function(pc) {
+        var gd = pc.parentElement;
+        if (!gd) return;
+        var rect = gd.getBoundingClientRect();
+        if (rect.width <= 0 || rect.height <= 0) return;
+        try { window.Plotly.relayout(gd, { width: Math.round(rect.width), height: Math.round(rect.height) }); } catch(e) {}
+      });
+    }
+    if (window.ApexCharts && window.Apex && window.Apex._chartInstances) {
+      window.Apex._chartInstances.forEach(function(inst) {
+        try { (inst.chart || inst).updateOptions({}, false, false); } catch(e) {}
+      });
+    }
+    if (window.Chart) {
+      try { Object.values(window.Chart.instances || {}).forEach(function(c) { c.resize(); }); } catch(e) {}
+    }
+  }
+
+  window.addEventListener('load', function() {
+    setTimeout(function() { _uxpResizeCharts(); setTimeout(_uxpResizeCharts, 500); }, 300);
+    try {
+      var _lastW = 0, _lastH = 0, _timer = 0;
+      new ResizeObserver(function() {
+        var w = document.documentElement.clientWidth;
+        var h = document.documentElement.clientHeight;
+        if (w === _lastW && h === _lastH) return;
+        _lastW = w; _lastH = h;
+        clearTimeout(_timer);
+        _timer = setTimeout(_uxpResizeCharts, 150);
+      }).observe(document.documentElement);
+    } catch(e) {}
+  });
+})();
+</script>
+</body></html>

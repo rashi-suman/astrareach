@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<%- include('../../layout/_head', { title: 'New Campaign - Step 1' }) %>
+<body class="bg-brand-dark text-gray-100 font-sans antialiased">
+<%- include('../../layout/_sidebar', { page: 'campaigns', user }) %>
+<div id="main-wrapper" class="flex flex-col min-h-screen">
+<%- include('../../layout/_header', { breadcrumbs, user }) %>
+<main class="flex-1 overflow-y-auto p-6">
+<div class="max-w-2xl mx-auto">
+
+    <!-- Wizard Steps -->
+    <div class="flex items-center gap-0 mb-8">
+        <% [['1','Name'],['2','Audience'],['3','Template'],['4','Launch']].forEach(([num, label], i) => { %>
+        <div class="flex items-center">
+            <div class="flex items-center gap-2">
+                <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold
+                    <%= num === '1' ? 'bg-brand-primary text-white' : parseInt(num) < 1 ? 'bg-green-500 text-white' : 'bg-btnSecondary border border-btnBorder text-brand-textMuted' %>">
+                    <%= num %>
+                </div>
+                <span class="text-xs font-medium <%= num === '1' ? 'text-white' : 'text-brand-textMuted' %>"><%= label %></span>
+            </div>
+            <% if (i < 3) { %><div class="h-px w-10 sm:w-16 bg-brand-border mx-3"></div><% } %>
+        </div>
+        <% }) %>
+    </div>
+
+    <div class="bg-brand-card border border-brand-border rounded-xl p-6 space-y-5">
+        <h2 class="text-lg font-semibold">Campaign Details</h2>
+        <form action="/campaigns/new/step/1" method="POST" class="space-y-4">
+            <div>
+                <label class="block text-xs font-medium text-brand-textMuted uppercase tracking-wide mb-1.5">Campaign Name *</label>
+                <input type="text" name="name" value="<%= draft.name || '' %>" required placeholder="e.g. SaaS Founders Outreach Q2"
+                    class="w-full bg-btnSecondary border border-btnBorder rounded-lg py-2.5 px-3.5 text-sm focus:outline-none focus:border-brand-primary transition-all">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-brand-textMuted uppercase tracking-wide mb-1.5">Description</label>
+                <textarea name="description" rows="3" placeholder="Optional description..."
+                    class="w-full bg-btnSecondary border border-btnBorder rounded-lg py-2.5 px-3.5 text-sm focus:outline-none focus:border-brand-primary transition-all resize-none"><%= draft.description || '' %></textarea>
+            </div>
+            <div class="flex justify-between pt-2">
+                <a href="/campaigns" class="px-5 py-2.5 bg-btnSecondary border border-btnBorder rounded-lg text-sm hover:bg-brand-border/50 transition-all">Cancel</a>
+                <button type="submit" class="px-6 py-2.5 bg-brand-primary text-white rounded-lg text-sm font-semibold hover:bg-blue-500 transition-all">
+                    Next: Audience <i class="fa-solid fa-arrow-right ml-2"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+</main>
+</div>
+<script>
+(function(){const btn=document.getElementById('sidebar-toggle');const sidebar=document.getElementById('sidebar');const wrapper=document.getElementById('main-wrapper');if(btn)btn.addEventListener('click',()=>{sidebar.classList.toggle('collapsed');wrapper.style.marginLeft=sidebar.classList.contains('collapsed')?'60px':'240px';});})();
+</script>
+</body>
+</html>

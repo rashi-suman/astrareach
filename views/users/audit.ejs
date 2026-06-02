@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="en">
+<%- include('../layout/_head', { title: 'Audit Log' }) %>
+<body class="bg-brand-dark text-gray-100 font-sans antialiased">
+<%- include('../layout/_sidebar', { page: 'settings', user }) %>
+<div id="main-wrapper" class="flex flex-col min-h-screen">
+<%- include('../layout/_header', { breadcrumbs: ['Users', 'Audit Log'], user }) %>
+<main class="flex-1 p-6 overflow-y-auto">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold">Audit Log</h1>
+    <a href="/users/<%= memberId %>" class="text-sm text-brand-textMuted hover:text-white">← Back</a>
+  </div>
+  <div class="bg-brand-card border border-brand-border rounded-xl overflow-hidden">
+    <table class="w-full text-sm">
+      <thead class="bg-brand-sidebar border-b border-brand-border">
+        <tr>
+          <th class="text-left px-4 py-3 text-brand-textMuted font-medium">Time</th>
+          <th class="text-left px-4 py-3 text-brand-textMuted font-medium">Action</th>
+          <th class="text-left px-4 py-3 text-brand-textMuted font-medium">Resource</th>
+          <th class="text-left px-4 py-3 text-brand-textMuted font-medium">IP</th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-brand-border">
+        <% for (const l of logs) { %>
+        <tr class="hover:bg-white/[0.02]">
+          <td class="px-4 py-3 text-brand-textMuted whitespace-nowrap text-xs"><%= new Date(l.created_at).toLocaleString() %></td>
+          <td class="px-4 py-3"><code class="text-xs text-brand-primary bg-brand-primary/10 px-1.5 py-0.5 rounded"><%= l.action %></code></td>
+          <td class="px-4 py-3 text-brand-textMuted text-xs"><%= l.resource_type || '—' %></td>
+          <td class="px-4 py-3 text-brand-textMuted text-xs font-mono"><%= l.ip_address || '—' %></td>
+        </tr>
+        <% } %>
+        <% if (!logs.length) { %>
+        <tr><td colspan="4" class="px-4 py-12 text-center text-brand-textMuted">No audit entries found.</td></tr>
+        <% } %>
+      </tbody>
+    </table>
+  </div>
+</main>
+</div>
+</body></html>

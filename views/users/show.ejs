@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<%- include('../layout/_head', { title: title }) %>
+<body class="bg-brand-dark text-gray-100 font-sans antialiased">
+<%- include('../layout/_sidebar', { page: 'settings', user }) %>
+<div id="main-wrapper" class="flex flex-col min-h-screen">
+<%- include('../layout/_header', { breadcrumbs: ['Users', member.name], user }) %>
+<main class="flex-1 p-6 overflow-y-auto">
+  <div class="max-w-lg mx-auto">
+    <div class="flex items-center justify-between mb-6">
+      <h1 class="text-2xl font-bold"><%= member.name %></h1>
+      <a href="/users/<%= member.id %>/edit" class="px-4 py-2 bg-brand-card border border-brand-border hover:border-brand-primary rounded-lg text-sm transition">Edit</a>
+    </div>
+    <div class="bg-brand-card border border-brand-border rounded-xl p-6 space-y-4 text-sm">
+      <div class="flex justify-between"><span class="text-brand-textMuted">Email</span><span><%= member.email %></span></div>
+      <div class="flex justify-between"><span class="text-brand-textMuted">Role</span>
+        <%
+          const _roleCls = {superadmin:'bg-purple-500/20 text-purple-400',admin:'bg-blue-500/20 text-blue-400',editor:'bg-teal-500/20 text-teal-400',lead_manager:'bg-green-500/20 text-green-400',campaign_manager:'bg-amber-500/20 text-amber-400'}[member.role]||'bg-gray-500/20 text-gray-400';
+          const _roleLabel = {superadmin:'Super Admin',admin:'Admin',editor:'Editor',lead_manager:'Lead Manager',campaign_manager:'Campaign Manager'}[member.role]||member.role;
+        %>
+        <span class="px-2 py-0.5 rounded text-xs font-medium <%= _roleCls %>"><%= _roleLabel %></span>
+      </div>
+      <div class="flex justify-between"><span class="text-brand-textMuted">Status</span>
+        <span class="<%= member.is_active ? 'text-green-400' : 'text-red-400' %>"><%= member.is_active ? 'Active' : 'Inactive' %></span>
+      </div>
+      <div class="flex justify-between"><span class="text-brand-textMuted">Last Login</span>
+        <span><%= member.last_login_at ? new Date(member.last_login_at).toLocaleString() : 'Never' %></span>
+      </div>
+      <div class="flex justify-between"><span class="text-brand-textMuted">Audit Entries</span>
+        <a href="/users/<%= member.id %>/audit-log" class="text-brand-primary hover:underline"><%= member.audit_count || 0 %> entries</a>
+      </div>
+    </div>
+  </div>
+</main>
+</div>
+</body></html>

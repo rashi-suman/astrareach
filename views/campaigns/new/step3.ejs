@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<%- include('../../layout/_head', { title: 'New Campaign - Step 3' }) %>
+<body class="bg-brand-dark text-gray-100 font-sans antialiased">
+<%- include('../../layout/_sidebar', { page: 'campaigns', user }) %>
+<div id="main-wrapper" class="flex flex-col min-h-screen">
+<%- include('../../layout/_header', { breadcrumbs, user }) %>
+<main class="flex-1 overflow-y-auto p-6">
+<div class="max-w-2xl mx-auto">
+
+    <!-- Wizard Steps -->
+    <div class="flex items-center gap-0 mb-8">
+        <% [['1','Name'],['2','Audience'],['3','Template'],['4','Launch']].forEach(([num, label], i) => { %>
+        <div class="flex items-center">
+            <div class="flex items-center gap-2">
+                <div class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold
+                    <%= num === '3' ? 'bg-brand-primary text-white' : parseInt(num) < 3 ? 'bg-green-500 text-white' : 'bg-btnSecondary border border-btnBorder text-brand-textMuted' %>">
+                    <% if (parseInt(num) < 3) { %><i class="fa-solid fa-check text-[10px]"></i><% } else { %><%= num %><% } %>
+                </div>
+                <span class="text-xs font-medium <%= num === '3' ? 'text-white' : parseInt(num) < 3 ? 'text-green-400' : 'text-brand-textMuted' %>"><%= label %></span>
+            </div>
+            <% if (i < 3) { %><div class="h-px w-10 sm:w-16 bg-brand-border mx-3"></div><% } %>
+        </div>
+        <% }) %>
+    </div>
+
+    <div class="bg-brand-card border border-brand-border rounded-xl p-6 space-y-5">
+        <h2 class="text-lg font-semibold">Choose Template</h2>
+
+        <form action="/campaigns/new/step/3" method="POST" class="space-y-5">
+            <div>
+                <label class="block text-xs font-medium text-brand-textMuted uppercase tracking-wide mb-1.5">Email Template *</label>
+                <select name="template_id" required class="w-full bg-btnSecondary border border-btnBorder rounded-lg py-2.5 px-3.5 text-sm focus:outline-none focus:border-brand-primary transition-all" id="template-select">
+                    <option value="">— Select Template —</option>
+                    <% templates.forEach(t => { %>
+                    <option value="<%= t.id %>" <%= draft.template_id === t.id ? 'selected' : '' %>><%= t.name %></option>
+                    <% }) %>
+                </select>
+                <% if (templates.length === 0) { %>
+                <p class="text-xs text-amber-400 mt-1"><i class="fa-solid fa-triangle-exclamation mr-1"></i>No templates yet. <a href="/templates/new" class="underline" target="_blank">Create one</a></p>
+                <% } %>
+            </div>
+
+            <!-- Template Preview (shown when selected) -->
+            <div id="template-preview" class="hidden bg-brand-dark border border-brand-border/50 rounded-lg p-4">
+                <p class="text-xs text-brand-textMuted uppercase tracking-wide mb-2">Subject Preview</p>
+                <p id="template-subject" class="text-sm font-medium text-white"></p>
+            </div>
+
+            <div class="flex justify-between pt-2">
+                <a href="/campaigns/new/step/2" class="px-5 py-2.5 bg-btnSecondary border border-btnBorder rounded-lg text-sm hover:bg-brand-border/50 transition-all">
+                    <i class="fa-solid fa-arrow-left mr-2"></i>Back
+                </a>
+                <button type="submit" class="px-6 py-2.5 bg-brand-primary text-white rounded-lg text-sm font-semibold hover:bg-blue-500 transition-all">
+                    Next: Launch <i class="fa-solid fa-arrow-right ml-2"></i>
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+</main>
+</div>
+<script>
+const templateData = <%- JSON.stringify(templates) %>;
+(function(){
+    const btn=document.getElementById('sidebar-toggle');const sidebar=document.getElementById('sidebar');const wrapper=document.getElementById('main-wrapper');
+    if(btn)btn.addEventListener('click',()=>{sidebar.classList.toggle('collapsed');wrapper.style.marginLeft=sidebar.classList.contains('collapsed')?'60px':'240px';});
+
+    const sel = document.getElementById('template-select');
+    const preview = document.getElementById('template-preview');
+    const subjEl = document.getElementById('template-subject');
+    if (sel) sel.addEventListener('change', () => {
+        const t = templateData.find(t => t.id === sel.value);
+        if (t) { subjEl.textContent = t.subject; preview.classList.remove('hidden'); }
+        else { preview.classList.add('hidden'); }
+    });
+    sel && sel.dispatchEvent(new Event('change'));
+})();
+</script>
+</body>
+</html>

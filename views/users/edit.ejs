@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<%- include('../layout/_head', { title: title }) %>
+<body class="bg-brand-dark text-gray-100 font-sans antialiased">
+<%- include('../layout/_sidebar', { page: 'settings', user }) %>
+<div id="main-wrapper" class="flex flex-col min-h-screen">
+<%- include('../layout/_header', { breadcrumbs: ['Users', 'Edit'], user }) %>
+<main class="flex-1 p-6 overflow-y-auto">
+  <div class="max-w-lg mx-auto">
+    <h1 class="text-2xl font-bold mb-6">Edit User</h1>
+    <div class="bg-brand-card border border-brand-border rounded-xl p-6 space-y-5">
+      <!-- Edit profile -->
+      <form method="POST" action="/users/<%= member.id %>?_method=PUT" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium mb-1.5">Full Name</label>
+          <input type="text" name="name" value="<%= member.name %>" required class="w-full bg-brand-sidebar border border-brand-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-primary">
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1.5">Role</label>
+          <select name="role" class="w-full bg-brand-sidebar border border-brand-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-primary">
+            <% for (const [val, label] of [['superadmin','Super Admin'],['admin','Admin'],['editor','Editor'],['lead_manager','Lead Manager'],['campaign_manager','Campaign Manager']]) { %>
+            <option value="<%= val %>" <%= member.role === val ? 'selected' : '' %>><%= label %></option>
+            <% } %>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium mb-1.5">Status</label>
+          <select name="is_active" class="w-full bg-brand-sidebar border border-brand-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-primary">
+            <option value="true"  <%= member.is_active ? 'selected' : '' %>>Active</option>
+            <option value="false" <%= !member.is_active ? 'selected' : '' %>>Inactive</option>
+          </select>
+        </div>
+        <div class="flex gap-3">
+          <button type="submit" class="px-5 py-2 bg-brand-primary hover:opacity-90 rounded-lg text-sm font-medium transition">Save Changes</button>
+          <a href="/users/<%= member.id %>" class="px-5 py-2 bg-brand-sidebar border border-brand-border rounded-lg text-sm transition">Cancel</a>
+        </div>
+      </form>
+
+      <hr class="border-brand-border">
+
+      <!-- Reset password -->
+      <div>
+        <h3 class="text-sm font-semibold mb-3">Reset Password</h3>
+        <form method="POST" action="/users/<%= member.id %>/reset-password" class="space-y-3">
+          <input type="password" name="new_password" placeholder="New password (min 8 chars)" minlength="8" required class="w-full bg-brand-sidebar border border-brand-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-brand-primary">
+          <button type="submit" class="px-4 py-2 bg-yellow-500/20 border border-yellow-500/40 text-yellow-400 hover:bg-yellow-500/30 rounded-lg text-sm transition">Reset Password</button>
+        </form>
+      </div>
+    </div>
+  </div>
+</main>
+</div>
+</body></html>

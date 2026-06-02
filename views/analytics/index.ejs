@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<%- include('../layout/_head', { title: 'Analytics' }) %>
+<body class="bg-brand-dark text-gray-100 font-sans antialiased">
+<%- include('../layout/_sidebar', { page: 'analytics', user }) %>
+<div id="main-wrapper" class="flex flex-col min-h-screen">
+<%- include('../layout/_header', { breadcrumbs, user }) %>
+<main class="flex-1 overflow-y-auto p-6">
+
+    <div class="mb-6">
+        <h1 class="text-xl font-semibold">Analytics</h1>
+        <p class="text-sm text-brand-textMuted mt-1">Email and WhatsApp performance over the last 30 days</p>
+        <p class="text-xs text-brand-textMuted mt-2">Full WhatsApp charts: <a href="/whatsapp/analytics" class="text-brand-primary hover:underline">WhatsApp → Analytics</a></p>
+    </div>
+
+    <!-- Summary Stats -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+        <div class="bg-brand-card border border-brand-border rounded-xl p-4">
+            <p class="text-xs text-brand-textMuted uppercase tracking-wide mb-2">Total Sent</p>
+            <p class="text-2xl font-bold text-white"><%= chartData.sent.reduce((a,b)=>a+b,0).toLocaleString() %></p>
+        </div>
+        <div class="bg-brand-card border border-brand-border rounded-xl p-4">
+            <p class="text-xs text-brand-textMuted uppercase tracking-wide mb-2">Avg Open Rate</p>
+            <p class="text-2xl font-bold text-brand-primary">
+                <% const openVals = (chartData.openRate||[]).filter(v=>v>0); %>
+                <%= openVals.length ? (openVals.reduce((a,b)=>a+b,0)/openVals.length).toFixed(1) : '0.0' %>%
+            </p>
+        </div>
+        <div class="bg-brand-card border border-brand-border rounded-xl p-4">
+            <p class="text-xs text-brand-textMuted uppercase tracking-wide mb-2">Avg Click Rate</p>
+            <p class="text-2xl font-bold text-brand-secondary">
+                <% const clickVals = (chartData.clickRate||[]).filter(v=>v>0); %>
+                <%= clickVals.length ? (clickVals.reduce((a,b)=>a+b,0)/clickVals.length).toFixed(1) : '0.0' %>%
+            </p>
+        </div>
+        <div class="bg-brand-card border border-brand-border rounded-xl p-4">
+            <p class="text-xs text-brand-textMuted uppercase tracking-wide mb-2">Total Booked</p>
+            <p class="text-2xl font-bold text-amber-500"><%= chartData.booked.reduce((a,b)=>a+b,0).toLocaleString() %></p>
+        </div>
+    </div>
+
+    <!-- Charts -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <!-- Send Volume -->
+        <div class="bg-brand-card border border-brand-border rounded-xl p-5">
+            <h2 class="font-semibold text-sm mb-4">Daily Send Volume</h2>
+            <div class="relative" style="height:220px;">
+                <canvas id="sendChart"></canvas>
+            </div>
+        </div>
+
+        <!-- Open + Click Rate -->
+        <div class="bg-brand-card border border-brand-border rounded-xl p-5">
+            <h2 class="font-semibold text-sm mb-4">Open &amp; Click Rate Trend</h2>
+            <div class="relative" style="height:220px;">
+                <canvas id="rateChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Campaign Performance Table -->
+    <div class="bg-brand-card border border-brand-border rounded-xl overflow-hidden mb-6">
+        <div class="p-5 border-b border-brand-border flex items-center justify-between">
+            <h2 class="font-semibold">Top Campaigns</h2>
+        </div>
+        <% if (!topCampaigns || topCampaigns.length === 0) { %>
+        <p class="p-6 text-center text-sm text-brand-textMuted">No campaign data yet</p>
+        <% } else { %>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-brand-sidebar/30 border-b border-brand-border text-[11px] uppercase tracking-wider text-brand-textMuted">
+                    <tr>
+                        <th class="px-5 py-3 text-left font-medium">Campaign</th>
+                        <th class="px-5 py-3 text-left font-medium">Total</th>
+                        <th class="px-5 py-3 text-left font-medium">Opened</th>
+                        <th class="px-5 py-3 text-left font-medium">Clicked</th>
+                        <th class="px-5 py-3 text-left font-medium">Booked</th>
+                        <th class="px-5 py-3 text-left font-medium">Open%</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-brand-border/40">
+                    <% topCampaigns.forEach(c => { %>
+                    <tr class="hover:bg-brand-sidebar/20 transition-colors">
+                        <td class="px-5 py-3.5 font-medium"><a href="/campaigns/<%= c.id %>" class="hover:text-brand-primary"><%= c.name %></a></td>
+                        <td class="px-5 py-3.5 text-brand-textMuted"><%= (c.total||0).toLocaleString() %></td>
+                        <td class="px-5 py-3.5 text-brand-secondary"><%= (c.opened||0).toLocaleString() %></td>
+                        <td class="px-5 py-3.5 text-green-500"><%= (c.clicked||0).toLocaleString() %></td>
+                        <td class="px-5 py-3.5 text-amber-500 font-semibold"><%= (c.booked||0).toLocaleString() %></td>
+                        <td class="px-5 py-3.5"><%= c.total > 0 ? (c.opened/c.total*100).toFixed(1) : '0.0' %>%</td>
+                    </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
+        <% } %>
+    </div>
+
+    <!-- Top Templates -->
+    <div class="bg-brand-card border border-brand-border rounded-xl overflow-hidden">
+        <div class="p-5 border-b border-brand-border">
+            <h2 class="font-semibold">Top Templates by Open Rate</h2>
+        </div>
+        <% if (!topTemplates || topTemplates.length === 0) { %>
+        <p class="p-6 text-center text-sm text-brand-textMuted">No template data yet</p>
+        <% } else { %>
+        <div class="divide-y divide-brand-border/40">
+            <% topTemplates.forEach((t, i) => { %>
+            <div class="flex items-center justify-between px-5 py-3.5">
+                <div class="flex items-center gap-3">
+                    <span class="text-xs text-brand-textMuted w-4">#<%= i+1 %></span>
+                    <a href="/templates/<%= t.id %>" class="text-sm font-medium hover:text-brand-primary"><%= t.name %></a>
+                </div>
+                <div class="flex items-center gap-4">
+                    <span class="text-xs text-brand-textMuted"><%= (t.total||0).toLocaleString() %> sent</span>
+                    <span class="text-sm font-semibold text-brand-primary"><%= t.total > 0 ? (t.opened/t.total*100).toFixed(1) : '0.0' %>% open</span>
+                </div>
+            </div>
+            <% }) %>
+        </div>
+        <% } %>
+    </div>
+
+    <!-- WhatsApp (30 days) -->
+    <div class="mt-10 mb-4 flex items-end justify-between gap-4 flex-wrap">
+        <div>
+            <h2 class="text-lg font-semibold text-white flex items-center gap-2">
+                <i class="fa-brands fa-whatsapp text-green-400"></i> WhatsApp
+            </h2>
+            <p class="text-xs text-brand-textMuted mt-0.5">Events for your organisation in the last 30 days</p>
+        </div>
+        <a href="/whatsapp/analytics" class="text-xs px-3 py-1.5 rounded-lg border border-brand-border text-brand-textMuted hover:border-green-500/40 hover:text-green-400 transition-colors">Open WA analytics</a>
+    </div>
+    <% const waO = typeof waOverview !== 'undefined' && waOverview ? waOverview : {}; %>
+    <% const waBase = Math.max(parseInt(waO.sent, 10) || 0, 1); %>
+    <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-6">
+        <% const waDefs = [
+          ['sent','Sent','fa-paper-plane','text-blue-400'],
+          ['delivered','Delivered','fa-check-double','text-green-400'],
+          ['read','Read','fa-eye','text-purple-400'],
+          ['replied','Replied','fa-reply','text-emerald-400'],
+          ['opted_out','Opt-outs','fa-ban','text-red-400'],
+        ];
+        waDefs.forEach(([key,label,icon,color]) => {
+          const n = parseInt(waO[key], 10) || 0;
+        %>
+        <div class="bg-brand-card border border-brand-border rounded-xl p-4 text-center">
+            <i class="fa-solid <%= icon %> <%= color %> text-sm mb-1.5"></i>
+            <p class="text-xl font-bold text-white"><%= n.toLocaleString() %></p>
+            <p class="text-[10px] text-brand-textMuted uppercase tracking-wide mt-0.5"><%= label %></p>
+            <% if (key !== 'sent' && n > 0) { %>
+            <p class="text-[10px] text-brand-textMuted/70"><%= Math.round(n/waBase*100) %>%</p>
+            <% } %>
+        </div>
+        <% }) %>
+    </div>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <div class="bg-brand-card border border-brand-border rounded-xl p-5">
+            <h3 class="font-semibold text-sm mb-4">WhatsApp daily volume</h3>
+            <div class="relative" style="height:220px;">
+                <canvas id="waVolumeChart"></canvas>
+            </div>
+        </div>
+        <div class="bg-brand-card border border-brand-border rounded-xl overflow-hidden">
+            <div class="p-4 border-b border-brand-border"><h3 class="font-semibold text-sm">Top WhatsApp campaigns</h3></div>
+            <% if (!waTopCampaigns || !waTopCampaigns.length) { %>
+            <p class="p-6 text-center text-sm text-brand-textMuted">No WhatsApp campaigns yet</p>
+            <% } else { %>
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-brand-sidebar/30 border-b border-brand-border text-[10px] uppercase tracking-wider text-brand-textMuted">
+                        <tr>
+                            <th class="px-4 py-2.5 text-left">Campaign</th>
+                            <th class="px-3 py-2.5 text-center">Sent</th>
+                            <th class="px-3 py-2.5 text-center">Del%</th>
+                            <th class="px-3 py-2.5 text-center">Read%</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-brand-border/40">
+                        <% waTopCampaigns.forEach(c => {
+                          const s = Math.max(parseInt(c.messages_sent,10)||0, 1);
+                          const delPct = Math.round((parseInt(c.delivered,10)||0)/s*100);
+                          const readPct = Math.round((parseInt(c.read_count,10)||0)/s*100);
+                        %>
+                        <tr class="hover:bg-brand-sidebar/20">
+                            <td class="px-4 py-2.5">
+                                <a href="/whatsapp/campaigns/<%= c.id %>" class="font-medium hover:text-green-400"><%= c.name %></a>
+                                <span class="ml-1.5 text-[10px] text-brand-textMuted"><%= c.status %></span>
+                            </td>
+                            <td class="px-3 py-2.5 text-center text-brand-textMuted"><%= (c.messages_sent||0).toLocaleString() %></td>
+                            <td class="px-3 py-2.5 text-center <%= delPct>70?'text-green-400':'' %>"><%= delPct %>%</td>
+                            <td class="px-3 py-2.5 text-center <%= readPct>30?'text-purple-400':'' %>"><%= readPct %>%</td>
+                        </tr>
+                        <% }) %>
+                    </tbody>
+                </table>
+            </div>
+            <% } %>
+        </div>
+    </div>
+
+</main>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+(function(){
+    const btn=document.getElementById('sidebar-toggle');const sidebar=document.getElementById('sidebar');const wrapper=document.getElementById('main-wrapper');
+    if(btn)btn.addEventListener('click',()=>{sidebar.classList.toggle('collapsed');wrapper.style.marginLeft=sidebar.classList.contains('collapsed')?'60px':'240px';});
+
+    const chartData = <%- JSON.stringify(chartData) %>;
+    const labels = chartData.labels.map(d => d.slice(5));
+
+    Chart.defaults.color = '#8b93a7';
+    Chart.defaults.borderColor = '#2a3347';
+
+    // Send Volume Chart
+    new Chart(document.getElementById('sendChart'), {
+        type: 'bar',
+        data: {
+            labels,
+            datasets: [{
+                label: 'Emails Sent',
+                data: chartData.sent,
+                backgroundColor: 'rgba(79,126,248,0.5)',
+                borderColor: '#4f7ef8',
+                borderWidth: 1,
+                borderRadius: 4,
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: { x: { grid: { display: false } }, y: { beginAtZero: true, ticks: { precision: 0 } } }
+        }
+    });
+
+    // Open + Click Rate Chart
+    new Chart(document.getElementById('rateChart'), {
+        type: 'line',
+        data: {
+            labels,
+            datasets: [
+                { label: 'Open Rate %', data: chartData.openRate || [], borderColor: '#4f7ef8', backgroundColor: 'rgba(79,126,248,0.1)', fill: true, tension: 0.4, pointRadius: 2 },
+                { label: 'Click Rate %', data: chartData.clickRate || [], borderColor: '#a78bfa', backgroundColor: 'rgba(167,139,250,0.1)', fill: true, tension: 0.4, pointRadius: 2 }
+            ]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } } },
+            scales: { y: { beginAtZero: true, ticks: { callback: v => v + '%' } } }
+        }
+    });
+
+    const waChart = <%- JSON.stringify(typeof waChart !== 'undefined' ? waChart : { labels: [], sent: [], delivered: [], read: [], replied: [] }) %>;
+    const waLab = (waChart.labels || []).map((d) => String(d).slice(5));
+    const waEl = document.getElementById('waVolumeChart');
+    if (waEl) {
+      new Chart(waEl, {
+        type: 'line',
+        data: {
+          labels: waLab,
+          datasets: [
+            { label: 'Sent', data: waChart.sent || [], borderColor: '#60a5fa', backgroundColor: 'rgba(96,165,250,0.12)', fill: true, tension: 0.35, borderWidth: 1.5, pointRadius: 0 },
+            { label: 'Delivered', data: waChart.delivered || [], borderColor: '#4ade80', backgroundColor: 'rgba(74,222,128,0.08)', fill: true, tension: 0.35, borderWidth: 1.5, pointRadius: 0 },
+            { label: 'Read', data: waChart.read || [], borderColor: '#c084fc', tension: 0.35, borderWidth: 1.5, pointRadius: 0 },
+            { label: 'Replied', data: waChart.replied || [], borderColor: '#34d399', tension: 0.35, borderWidth: 1.5, pointRadius: 0 },
+          ],
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          interaction: { mode: 'index', intersect: false },
+          plugins: { legend: { position: 'bottom', labels: { boxWidth: 10 } } },
+          scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+        },
+      });
+    }
+})();
+</script>
+</body>
+</html>

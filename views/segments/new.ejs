@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<%- include('../layout/_head', { title: 'New Segment' }) %>
+<body class="bg-brand-dark text-gray-100 font-sans antialiased">
+<%- include('../layout/_sidebar', { page: 'segments', user }) %>
+<div id="main-wrapper" class="flex flex-col min-h-screen">
+<%- include('../layout/_header', { breadcrumbs, user }) %>
+<main class="flex-1 overflow-y-auto p-6">
+<div class="max-w-3xl mx-auto space-y-6">
+
+    <h1 class="text-xl font-semibold">Build New Segment</h1>
+    <p class="text-sm text-brand-textMuted mt-1 max-w-2xl">Segments are <strong class="text-white/90">saved filters on your contact list</strong> — the same segments power email campaigns, WhatsApp campaigns, and opt-in imports. Add a <em>WhatsApp phone</em> filter when you only want contacts you can message on WhatsApp.</p>
+
+    <form action="/segments" method="POST" id="segment-form">
+        <!-- Name + Description -->
+        <div class="bg-brand-card border border-brand-border rounded-xl p-5 space-y-4 mb-5">
+            <div>
+                <label class="block text-xs font-medium text-brand-textMuted uppercase tracking-wide mb-1.5">Segment Name *</label>
+                <input type="text" name="name" required placeholder="e.g. SaaS Founders in India"
+                    class="w-full bg-btnSecondary border border-btnBorder rounded-lg py-2.5 px-3.5 text-sm focus:outline-none focus:border-brand-primary transition-all">
+            </div>
+            <div>
+                <label class="block text-xs font-medium text-brand-textMuted uppercase tracking-wide mb-1.5">Description</label>
+                <textarea name="description" rows="2" placeholder="Optional description..."
+                    class="w-full bg-btnSecondary border border-btnBorder rounded-lg py-2.5 px-3.5 text-sm focus:outline-none focus:border-brand-primary transition-all resize-none"></textarea>
+            </div>
+        </div>
+
+        <!-- Filter Builder -->
+        <div class="bg-brand-card border border-brand-border rounded-xl overflow-hidden mb-5">
+            <div class="p-5 border-b border-brand-border flex items-center justify-between">
+                <h2 class="font-semibold">Filters</h2>
+                <button type="button" id="add-filter" class="text-xs text-brand-primary hover:underline flex items-center gap-1.5">
+                    <i class="fa-solid fa-plus text-[10px]"></i>Add Filter
+                </button>
+            </div>
+            <div id="filter-rows" class="p-5 space-y-3">
+                <!-- Filter rows added dynamically -->
+            </div>
+            <div id="no-filters" class="p-5 text-center text-sm text-brand-textMuted">
+                <i class="fa-solid fa-filter text-3xl mb-2 opacity-20 block"></i>
+                No filters yet — click "Add Filter" to start
+            </div>
+        </div>
+
+        <!-- Preview Count -->
+        <div class="bg-brand-primary/5 border border-brand-primary/20 rounded-xl p-4 flex items-center justify-between mb-5">
+            <div class="flex items-center gap-3">
+                <i class="fa-solid fa-users text-brand-primary"></i>
+                <div>
+                    <p class="text-sm font-semibold">Matching Contacts</p>
+                    <p class="text-xs text-brand-textMuted" id="preview-sub">Add filters to preview</p>
+                </div>
+            </div>
+            <p class="text-3xl font-bold text-brand-primary" id="preview-count">—</p>
+        </div>
+
+        <input type="hidden" name="filters" id="filters-json" value='{"rules":[]}'>
+
+        <div class="flex items-center justify-between">
+            <a href="/segments" class="px-5 py-2.5 bg-btnSecondary border border-btnBorder rounded-lg text-sm font-medium hover:bg-brand-border/50 transition-all">Cancel</a>
+            <button type="submit" class="px-6 py-2.5 bg-brand-primary text-white rounded-lg text-sm font-semibold hover:bg-blue-500 transition-all">
+                <i class="fa-solid fa-save mr-2"></i>Save Segment
+            </button>
+        </div>
+    </form>
+</div>
+</main>
+</div>
+<div id="toast-container"></div>
+<script>
+(function(){
+    const btn=document.getElementById('sidebar-toggle');const sidebar=document.getElementById('sidebar');const wrapper=document.getElementById('main-wrapper');
+    if(btn)btn.addEventListener('click',()=>{sidebar.classList.toggle('collapsed');wrapper.style.marginLeft=sidebar.classList.contains('collapsed')?'60px':'240px';});
+
+    const fields = [
+        {v:'email',     l:'Email',          type:'text'},
+        {v:'first_name',l:'First Name',     type:'text'},
+        {v:'last_name', l:'Last Name',      type:'text'},
+        {v:'company',   l:'Company',        type:'text'},
+        {v:'industry',  l:'Industry',       type:'text'},
+        {v:'country',   l:'Country',        type:'text'},
+        {v:'city',      l:'City',           type:'text'},
+        {v:'job_title', l:'Job Title',      type:'text'},
+        {v:'status',    l:'Status',         type:'select', opts:['active','unsubscribed','bounced','invalid']},
+        {v:'source',    l:'Source',         type:'text'},
+        {v:'tags',      l:'Tags',           type:'tags'},
+        {v:'revenue_range',   l:'Revenue Range',   type:'text'},
+        {v:'employee_count',  l:'Employee Count',  type:'text'},
+        {v:'whatsapp_phone',  l:'WhatsApp phone',  type:'text'},
+        {v:'whatsapp_opted_in', l:'WhatsApp opted in', type:'bool'},
+    ];
+    const textOps = [
+        {v:'contains',     l:'contains'},
+        {v:'not_contains', l:'does not contain'},
+        {v:'equals',       l:'equals'},
+        {v:'not_equals',   l:'does not equal'},
+        {v:'starts_with',  l:'starts with'},
+        {v:'is_empty',     l:'is empty'},
+        {v:'is_filled',    l:'is filled'},
+    ];
+    const selectOps = [{v:'equals',l:'is'},{v:'not_equals',l:'is not'},{v:'is_empty',l:'is empty'}];
+    const tagOps    = [
+        {v:'contains_any', l:'contains any of'},
+        {v:'contains_all', l:'contains all of'},
+        {v:'not_contains',  l:'does not contain'},
+        {v:'is_empty',      l:'is empty'},
+    ];
+    const boolOps = [{v:'equals',l:'is'}];
+    let rules = [];
+
+    function renderOps(field) {
+        const f = fields.find(f => f.v === field);
+        if (!f) return '';
+        const ops = f.type === 'bool' ? boolOps : f.type === 'tags' ? tagOps : f.type === 'select' ? selectOps : textOps;
+        return ops.map(o => `<option value="${o.v}">${o.l}</option>`).join('');
+    }
+
+    function renderValueInput(field, op) {
+        const f = fields.find(f => f.v === field);
+        if (!f) return '';
+        if (op === 'is_empty' || op === 'is_filled') return `<span class="flex-1 text-xs text-brand-textMuted italic py-2 px-3">no value needed</span>`;
+        if (f.type === 'bool') return `<select name="val" class="flex-1 bg-btnSecondary border border-btnBorder rounded-lg py-2 px-3 text-sm focus:outline-none"><option value="true">Yes</option><option value="false">No</option></select>`;
+        if (f.type === 'select') return `<select name="val" class="flex-1 bg-btnSecondary border border-btnBorder rounded-lg py-2 px-3 text-sm focus:outline-none">${f.opts.map(o=>`<option value="${o}">${o}</option>`).join('')}</select>`;
+        if (f.type === 'tags') return `<input type="text" name="val" placeholder="tag1, tag2, ..." class="flex-1 bg-btnSecondary border border-btnBorder rounded-lg py-2 px-3 text-sm focus:outline-none focus:border-brand-primary transition-all">`;
+        return `<input type="text" name="val" placeholder="value..." class="flex-1 bg-btnSecondary border border-btnBorder rounded-lg py-2 px-3 text-sm focus:outline-none focus:border-brand-primary transition-all">`;
+    }
+
+    function addFilterRow(rule = null) {
+        const idx = rules.length;
+        const field = rule ? rule.field : fields[0].v;
+        const op = rule ? rule.op : 'contains';
+        const val = rule ? rule.value : '';
+
+        rules.push({field, op, value: val});
+        document.getElementById('no-filters').style.display = 'none';
+
+        const row = document.createElement('div');
+        row.className = 'filter-row flex items-center gap-2';
+        row.dataset.idx = idx;
+        row.innerHTML = `
+            <select name="field" class="bg-btnSecondary border border-btnBorder rounded-lg py-2 px-3 text-sm focus:outline-none min-w-[140px]">
+                ${fields.map(f => `<option value="${f.v}" ${f.v === field ? 'selected' : ''}>${f.l}</option>`).join('')}
+            </select>
+            <select name="op" class="bg-btnSecondary border border-btnBorder rounded-lg py-2 px-3 text-sm focus:outline-none min-w-[110px]">
+                ${renderOps(field)}
+            </select>
+            ${renderValueInput(field, op)}
+            <button type="button" class="remove-filter p-2 text-brand-textMuted hover:text-red-400 transition-colors"><i class="fa-solid fa-xmark"></i></button>`;
+
+        if (val) row.querySelector('input[name="val"], select[name="val"]').value = val;
+
+        row.querySelector('select[name="field"]').addEventListener('change', (e) => {
+            const newField = e.target.value;
+            rules[idx].field = newField;
+            const opSel = row.querySelector('select[name="op"]');
+            opSel.innerHTML = renderOps(newField);
+            const valWrap = row.querySelector('input[name="val"], select[name="val"]');
+            const newInput = document.createElement('div');
+            newInput.innerHTML = renderValueInput(newField, opSel.value);
+            valWrap.replaceWith(newInput.firstChild);
+            syncAndPreview();
+        });
+
+        row.querySelector('select[name="op"]').addEventListener('change', (e) => { rules[idx].op = e.target.value; syncAndPreview(); });
+        row.addEventListener('input', syncAndPreview);
+        row.querySelector('.remove-filter').addEventListener('click', () => {
+            rules.splice(idx, 1);
+            row.remove();
+            if (document.querySelectorAll('.filter-row').length === 0) document.getElementById('no-filters').style.display = '';
+            syncAndPreview();
+        });
+
+        document.getElementById('filter-rows').appendChild(row);
+    }
+
+    function syncAndPreview() {
+        const rows = document.querySelectorAll('.filter-row');
+        rules = [...rows].map(row => {
+            const field = row.querySelector('[name="field"]').value;
+            const op    = row.querySelector('[name="op"]').value;
+            const rawVal = (row.querySelector('[name="val"]') || {}).value || '';
+            const f = fields.find(f => f.v === field);
+            // For tags: split comma-separated into array
+            const value = (f && f.type === 'tags') ? rawVal.split(',').map(t=>t.trim()).filter(Boolean) : rawVal;
+            return { field, op, value };
+        });
+        document.getElementById('filters-json').value = JSON.stringify({ rules });
+        fetchPreview();
+    }
+
+    let previewTimer;
+    function fetchPreview() {
+        clearTimeout(previewTimer);
+        previewTimer = setTimeout(() => {
+            const filters = { rules };
+            fetch('/segments/preview', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ filters }) })
+                .then(r => r.json())
+                .then(d => {
+                    document.getElementById('preview-count').textContent = (d.count || 0).toLocaleString();
+                    document.getElementById('preview-sub').textContent = 'contacts match current filters';
+                })
+                .catch(() => {});
+        }, 500);
+    }
+
+    document.getElementById('add-filter').addEventListener('click', () => { addFilterRow(); syncAndPreview(); });
+    document.getElementById('segment-form').addEventListener('submit', syncAndPreview);
+})();
+</script>
+</body>
+</html>

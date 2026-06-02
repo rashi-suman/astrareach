@@ -1,0 +1,507 @@
+<%
+// ── Helper: get meta for a field ──
+function fmeta(field) {
+  return (typeof fieldMeta !== 'undefined' && fieldMeta && fieldMeta[field]) || null;
+}
+function confBadge(score) {
+  if (!score) return '';
+  const cls = score >= 90 ? 'bg-green-500/20 text-green-400 border-green-500/30'
+            : score >= 70 ? 'bg-amber-500/20 text-amber-400 border-amber-500/30'
+                          : 'bg-red-500/20 text-red-400 border-red-500/30';
+  return `<span class="px-1.5 py-0.5 rounded text-[10px] border ${cls}">${score}%</span>`;
+}
+function srcLink(field) {
+  const m = fmeta(field);
+  return m && m.sourceUrl
+    ? `<a href="${m.sourceUrl}" target="_blank" rel="noopener" class="ml-1 text-brand-primary hover:underline text-[10px]"><i class="fa-solid fa-arrow-up-right-from-square"></i></a>`
+    : '';
+}
+const e = enrichment || {};
+const noData = !enrichment || !['completed','partial'].includes(enrichment.enrichment_status);
+%>
+
+<div class="space-y-5" id="enrichment-root">
+
+  <!-- ── Enrichment Header ── -->
+  <div class="bg-brand-card border border-brand-border rounded-xl p-5">
+    <div class="flex flex-wrap items-center justify-between gap-3">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl bg-purple-500/15 flex items-center justify-center shrink-0">
+          <i class="fa-solid fa-wand-magic-sparkles text-purple-400 text-sm"></i>
+        </div>
+        <div>
+          <p class="font-semibold text-sm">AI Contact Enrichment</p>
+          <% if (!enrichment) { %>
+          <p class="text-xs text-brand-textMuted mt-0.5">No enrichment data yet</p>
+          <% } else if (enrichment.enrichment_status === 'running') { %>
+          <p class="text-xs text-amber-400 mt-0.5"><i class="fa-solid fa-spinner fa-spin mr-1"></i>Enriching… researching public data</p>
+          <% } else if (enrichment.enrichment_status === 'completed') { %>
+          <p class="text-xs text-green-400 mt-0.5">
+            <i class="fa-solid fa-circle-check mr-1"></i>
+            <%= Object.keys(e.field_confidence || {}).length %> fields found ·
+            Last enriched <%= enrichment.enrichment_completed_at ? new Date(enrichment.enrichment_completed_at).toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'}) : '' %>
+          </p>
+          <% } else if (enrichment.enrichment_status === 'partial') { %>
+          <p class="text-xs text-amber-400 mt-0.5"><i class="fa-solid fa-triangle-exclamation mr-1"></i>Partial — some fields had low confidence</p>
+          <% } else if (enrichment.enrichment_status === 'pending') { %>
+          <p class="text-xs text-brand-textMuted mt-0.5"><i class="fa-solid fa-clock mr-1"></i>Queued for enrichment</p>
+          <% } else if (enrichment.enrichment_status === 'failed') { %>
+          <p class="text-xs text-red-400 mt-0.5"><i class="fa-solid fa-circle-xmark mr-1"></i>Failed: <%= enrichment.error_message ? enrichment.error_message.slice(0,80) : 'Unknown error' %></p>
+          <% } %>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <% if (enrichment && ['completed','partial'].includes(enrichment.enrichment_status)) { %>
+        <button onclick="startEnrich(true)" class="px-3 py-1.5 bg-btnSecondary border border-btnBorder rounded-lg text-xs hover:bg-brand-border/50 transition-all">
+          <i class="fa-solid fa-rotate mr-1"></i>Re-enrich
+        </button>
+        <form action="/contacts/<%= contact.id %>/enrichment" method="POST" class="inline" onsubmit="return confirm('Clear enrichment data for this contact?')">
+          <input type="hidden" name="_method" value="DELETE">
+          <button type="submit" class="px-3 py-1.5 bg-transparent border border-red-500/30 text-red-400 hover:bg-red-500/10 rounded-lg text-xs transition-all">
+            <i class="fa-solid fa-trash mr-1"></i>Clear
+          </button>
+        </form>
+        <% } else if (!enrichment || ['failed','partial'].includes(enrichment.enrichment_status)) { %>
+        <button onclick="startEnrich(false)" id="enrich-btn" class="px-4 py-2 bg-purple-600/20 border border-purple-500/40 text-purple-400 hover:bg-purple-600/30 rounded-lg text-sm font-semibold transition-all flex items-center gap-2">
+          <i class="fa-solid fa-wand-magic-sparkles text-xs"></i>Enrich Now
+        </button>
+        <% } else if (enrichment.enrichment_status === 'pending' || enrichment.enrichment_status === 'running') { %>
+        <span class="px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 text-amber-400 rounded-lg text-xs">
+          <i class="fa-solid fa-spinner fa-spin mr-1"></i>In progress…
+        </span>
+        <% } %>
+      </div>
+    </div>
+
+    <!-- Progress bar when running -->
+    <% if (enrichment?.enrichment_status === 'running' || enrichment?.enrichment_status === 'pending') { %>
+    <div class="mt-4">
+      <div class="w-full h-1.5 bg-brand-border rounded-full overflow-hidden">
+        <div class="h-full bg-purple-500 rounded-full animate-pulse" style="width:60%"></div>
+      </div>
+    </div>
+    <% } %>
+  </div>
+
+  <% if (!noData) { %>
+
+  <!-- ── Enrichment Stats Bar ── -->
+  <%
+    const confScores = Object.values(e.field_confidence || {}).map(v => v.score).filter(Boolean);
+    const avgConf    = confScores.length ? Math.round(confScores.reduce((a,b)=>a+b,0) / confScores.length) : 0;
+    const sourceUrls = new Set(Object.values(e.field_sources || {}).map(s => s?.url).filter(Boolean).map(u => { try { return new URL(u).hostname; } catch { return null; } }).filter(Boolean));
+  %>
+  <div class="grid grid-cols-3 gap-3">
+    <div class="bg-brand-card border border-brand-border rounded-xl p-3.5 text-center">
+      <p class="text-xl font-bold text-purple-400"><%= Object.keys(e.field_confidence || {}).length %></p>
+      <p class="text-xs text-brand-textMuted mt-0.5">Fields Found</p>
+    </div>
+    <div class="bg-brand-card border border-brand-border rounded-xl p-3.5 text-center">
+      <p class="text-xl font-bold text-green-400"><%= avgConf %>%</p>
+      <p class="text-xs text-brand-textMuted mt-0.5">Avg Confidence</p>
+    </div>
+    <div class="bg-brand-card border border-brand-border rounded-xl p-3.5 text-center">
+      <p class="text-xl font-bold text-blue-400"><%= sourceUrls.size %></p>
+      <p class="text-xs text-brand-textMuted mt-0.5">Sources</p>
+    </div>
+  </div>
+
+  <!-- ── Tabs ── -->
+  <div class="border-b border-brand-border flex gap-5 overflow-x-auto" id="enrich-tabs">
+    <button class="pb-3 text-xs font-medium enrich-tab-btn enrich-tab-active whitespace-nowrap" data-etab="company">
+      <i class="fa-solid fa-building mr-1.5"></i>Company
+    </button>
+    <button class="pb-3 text-xs font-medium text-brand-textMuted hover:text-white enrich-tab-btn transition-all whitespace-nowrap" data-etab="person">
+      <i class="fa-solid fa-user mr-1.5"></i>Person
+    </button>
+    <button class="pb-3 text-xs font-medium text-brand-textMuted hover:text-white enrich-tab-btn transition-all whitespace-nowrap" data-etab="signals">
+      <i class="fa-solid fa-bolt mr-1.5"></i>Buying Signals
+    </button>
+    <button class="pb-3 text-xs font-medium text-brand-textMuted hover:text-white enrich-tab-btn transition-all whitespace-nowrap" data-etab="provenance">
+      <i class="fa-solid fa-shield-halved mr-1.5"></i>Data Provenance
+    </button>
+  </div>
+
+  <!-- ── Company Tab ── -->
+  <div id="etab-company" class="enrich-tab-panel space-y-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <!-- Website -->
+      <% if (e.company_website) { %>
+      <div class="bg-brand-card border border-brand-border rounded-xl p-4">
+        <p class="text-[10px] text-brand-textMuted uppercase tracking-wide mb-1">Website</p>
+        <div class="flex items-center gap-2">
+          <a href="<%= e.company_website %>" target="_blank" class="text-sm text-brand-primary hover:underline truncate"><%= e.company_website.replace(/^https?:\/\//,'') %></a>
+          <i class="fa-solid fa-arrow-up-right-from-square text-[10px] text-brand-textMuted shrink-0"></i>
+          <%- confBadge(fmeta('company_website')?.confidence) %>
+        </div>
+      </div>
+      <% } %>
+      <!-- LinkedIn -->
+      <% if (e.company_linkedin_url) { %>
+      <div class="bg-brand-card border border-brand-border rounded-xl p-4">
+        <p class="text-[10px] text-brand-textMuted uppercase tracking-wide mb-1">LinkedIn</p>
+        <div class="flex items-center gap-2">
+          <a href="<%= e.company_linkedin_url %>" target="_blank" class="text-sm text-blue-400 hover:underline truncate"><%= e.company_linkedin_url.replace('https://www.linkedin.com/company/','') %></a>
+          <%- confBadge(fmeta('company_linkedin_url')?.confidence) %>
+        </div>
+      </div>
+      <% } %>
+      <!-- Founded + Employees + Revenue -->
+      <% if (e.company_founded_year || e.company_employee_range || e.company_revenue_range) { %>
+      <div class="bg-brand-card border border-brand-border rounded-xl p-4 sm:col-span-2">
+        <div class="grid grid-cols-3 gap-4">
+          <% if (e.company_founded_year) { %>
+          <div>
+            <p class="text-[10px] text-brand-textMuted uppercase tracking-wide mb-1">Founded</p>
+            <p class="text-sm font-semibold"><%= e.company_founded_year %></p>
+          </div>
+          <% } %>
+          <% if (e.company_employee_range) { %>
+          <div>
+            <p class="text-[10px] text-brand-textMuted uppercase tracking-wide mb-1">Employees</p>
+            <p class="text-sm font-semibold"><i class="fa-solid fa-users text-brand-textMuted mr-1 text-xs"></i><%= e.company_employee_range %></p>
+          </div>
+          <% } %>
+          <% if (e.company_revenue_range) { %>
+          <div>
+            <p class="text-[10px] text-brand-textMuted uppercase tracking-wide mb-1">Revenue</p>
+            <p class="text-sm font-semibold text-green-400"><%= e.company_revenue_range %></p>
+          </div>
+          <% } %>
+        </div>
+      </div>
+      <% } %>
+      <!-- HQ -->
+      <% if (e.company_hq_city || e.company_hq_country) { %>
+      <div class="bg-brand-card border border-brand-border rounded-xl p-4">
+        <p class="text-[10px] text-brand-textMuted uppercase tracking-wide mb-1">HQ Location</p>
+        <p class="text-sm"><i class="fa-solid fa-location-dot text-brand-textMuted mr-1 text-xs"></i><%= [e.company_hq_city, e.company_hq_country].filter(Boolean).join(', ') %></p>
+      </div>
+      <% } %>
+      <!-- Funding -->
+      <% if (e.company_funding_stage || e.company_total_funding) { %>
+      <div class="bg-brand-card border border-brand-border rounded-xl p-4">
+        <p class="text-[10px] text-brand-textMuted uppercase tracking-wide mb-1">Funding</p>
+        <% if (e.company_funding_stage) { %><span class="px-2 py-0.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-full text-[10px] font-bold mr-1"><%= e.company_funding_stage %></span><% } %>
+        <% if (e.company_total_funding) { %><span class="text-sm text-green-400 font-semibold"><%= e.company_total_funding %></span><% } %>
+      </div>
+      <% } %>
+    </div>
+
+    <!-- Description -->
+    <% if (e.company_description) { %>
+    <div class="bg-brand-card border border-brand-border rounded-xl p-4">
+      <p class="text-[10px] text-brand-textMuted uppercase tracking-wide mb-2">About the Company</p>
+      <p class="text-sm text-gray-300 leading-relaxed"><%= e.company_description %></p>
+      <%- srcLink('company_description') %>
+    </div>
+    <% } %>
+
+    <!-- Investors -->
+    <% if (e.company_investors && e.company_investors.length) { %>
+    <div class="bg-brand-card border border-brand-border rounded-xl p-4">
+      <p class="text-[10px] text-brand-textMuted uppercase tracking-wide mb-2">Investors</p>
+      <div class="flex flex-wrap gap-1.5">
+        <% e.company_investors.forEach(inv => { %><span class="px-2 py-0.5 bg-brand-primary/10 text-brand-primary border border-brand-primary/20 rounded-full text-xs"><%= inv %></span><% }) %>
+      </div>
+    </div>
+    <% } %>
+
+    <!-- Tech Stack -->
+    <% if (e.company_tech_stack && e.company_tech_stack.length) { %>
+    <div class="bg-brand-card border border-brand-border rounded-xl p-4">
+      <p class="text-[10px] text-brand-textMuted uppercase tracking-wide mb-2">Tech Stack</p>
+      <div class="flex flex-wrap gap-1.5">
+        <% e.company_tech_stack.forEach(t => { %><span class="px-2 py-0.5 bg-teal-500/10 text-teal-400 border border-teal-500/20 rounded text-xs font-mono"><%= t %></span><% }) %>
+      </div>
+      <%- srcLink('company_tech_stack') %>
+    </div>
+    <% } %>
+
+    <!-- Recent News -->
+    <% if (e.company_recent_news && e.company_recent_news.length) { %>
+    <div class="bg-brand-card border border-brand-border rounded-xl p-4">
+      <p class="text-[10px] text-brand-textMuted uppercase tracking-wide mb-3">Recent News</p>
+      <div class="space-y-3">
+        <% e.company_recent_news.forEach(n => { %>
+        <div class="p-3 bg-brand-dark rounded-lg border border-brand-border/50">
+          <div class="flex items-start justify-between gap-2">
+            <p class="text-sm font-medium leading-snug flex-1"><%= n.title %></p>
+            <a href="<%= n.url %>" target="_blank" class="text-brand-primary hover:underline text-xs shrink-0 mt-0.5">Read →</a>
+          </div>
+          <% if (n.summary) { %><p class="text-xs text-brand-textMuted mt-1"><%= n.summary %></p><% } %>
+          <% if (n.date) { %><p class="text-[10px] text-brand-textMuted mt-1"><i class="fa-regular fa-calendar mr-1"></i><%= n.date %></p><% } %>
+        </div>
+        <% }) %>
+      </div>
+    </div>
+    <% } %>
+  </div>
+
+  <!-- ── Person Tab ── -->
+  <div id="etab-person" class="enrich-tab-panel hidden space-y-4">
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <% if (e.person_linkedin_url) { %>
+      <div class="bg-brand-card border border-brand-border rounded-xl p-4">
+        <p class="text-[10px] text-brand-textMuted uppercase tracking-wide mb-1">LinkedIn</p>
+        <a href="<%= e.person_linkedin_url %>" target="_blank" class="text-sm text-blue-400 hover:underline flex items-center gap-1.5">
+          <i class="fa-brands fa-linkedin text-blue-500 text-sm"></i><%= e.person_linkedin_url.replace('https://www.linkedin.com/in/','') %>
+        </a>
+        <%- confBadge(fmeta('person_linkedin_url')?.confidence) %>
+      </div>
+      <% } %>
+      <% if (e.person_twitter_url) { %>
+      <div class="bg-brand-card border border-brand-border rounded-xl p-4">
+        <p class="text-[10px] text-brand-textMuted uppercase tracking-wide mb-1">Twitter / X</p>
+        <a href="<%= e.person_twitter_url %>" target="_blank" class="text-sm text-sky-400 hover:underline flex items-center gap-1.5">
+          <i class="fa-brands fa-x-twitter text-sm"></i><%= e.person_twitter_url.replace(/^https?:\/\/(www\.)?(twitter|x)\.com\//,'@') %>
+        </a>
+      </div>
+      <% } %>
+      <% if (e.person_location) { %>
+      <div class="bg-brand-card border border-brand-border rounded-xl p-4">
+        <p class="text-[10px] text-brand-textMuted uppercase tracking-wide mb-1">Location</p>
+        <p class="text-sm"><i class="fa-solid fa-location-dot text-brand-textMuted mr-1 text-xs"></i><%= e.person_location %></p>
+      </div>
+      <% } %>
+      <% if (e.person_education) { %>
+      <div class="bg-brand-card border border-brand-border rounded-xl p-4">
+        <p class="text-[10px] text-brand-textMuted uppercase tracking-wide mb-1">Education</p>
+        <p class="text-sm"><i class="fa-solid fa-graduation-cap text-brand-textMuted mr-1 text-xs"></i><%= e.person_education %></p>
+      </div>
+      <% } %>
+    </div>
+    <% if (e.person_bio) { %>
+    <div class="bg-brand-card border border-brand-border rounded-xl p-4">
+      <p class="text-[10px] text-brand-textMuted uppercase tracking-wide mb-2">Professional Bio</p>
+      <p class="text-sm text-gray-300 leading-relaxed"><%= e.person_bio %></p>
+    </div>
+    <% } %>
+    <% if (e.person_skills && e.person_skills.length) { %>
+    <div class="bg-brand-card border border-brand-border rounded-xl p-4">
+      <p class="text-[10px] text-brand-textMuted uppercase tracking-wide mb-2">Skills</p>
+      <div class="flex flex-wrap gap-1.5">
+        <% e.person_skills.forEach(s => { %><span class="px-2 py-0.5 bg-brand-primary/10 text-brand-primary border border-brand-primary/20 rounded text-xs"><%= s %></span><% }) %>
+      </div>
+    </div>
+    <% } %>
+    <% if (e.person_past_companies && e.person_past_companies.length) { %>
+    <div class="bg-brand-card border border-brand-border rounded-xl p-4">
+      <p class="text-[10px] text-brand-textMuted uppercase tracking-wide mb-2">Past Companies</p>
+      <ul class="space-y-1">
+        <% e.person_past_companies.forEach(c => { %><li class="text-sm flex items-center gap-2"><span class="w-1.5 h-1.5 rounded-full bg-brand-textMuted shrink-0"></span><%= c %></li><% }) %>
+      </ul>
+    </div>
+    <% } %>
+    <% if (e.person_publications && e.person_publications.length) { %>
+    <div class="bg-brand-card border border-brand-border rounded-xl p-4">
+      <p class="text-[10px] text-brand-textMuted uppercase tracking-wide mb-2">Publications / Articles</p>
+      <ul class="space-y-1.5">
+        <% e.person_publications.forEach(p => { %><li><a href="<%= p %>" target="_blank" class="text-xs text-brand-primary hover:underline"><i class="fa-solid fa-link mr-1"></i><%= p.length > 80 ? p.slice(0,80)+'…' : p %></a></li><% }) %>
+      </ul>
+    </div>
+    <% } %>
+  </div>
+
+  <!-- ── Buying Signals Tab ── -->
+  <div id="etab-signals" class="enrich-tab-panel hidden space-y-3">
+    <% const hasSignals = e.signal_recently_funded || e.signal_job_change || (e.signal_hiring_roles && e.signal_hiring_roles.length) || (e.signal_tech_adoption && e.signal_tech_adoption.length) || (e.signal_pain_keywords && e.signal_pain_keywords.length); %>
+    <% if (!hasSignals) { %>
+    <div class="bg-brand-card border border-brand-border rounded-xl p-8 text-center">
+      <i class="fa-solid fa-bolt text-3xl text-brand-textMuted opacity-30 block mb-3"></i>
+      <p class="text-sm text-brand-textMuted">No buying signals detected for this contact</p>
+    </div>
+    <% } else { %>
+    <!-- Recently Funded -->
+    <div class="bg-brand-card border rounded-xl p-4 <%= e.signal_recently_funded ? 'border-green-500/30' : 'border-brand-border opacity-50' %>">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 <%= e.signal_recently_funded ? 'bg-green-500/20' : 'bg-brand-border/30' %>">
+          <i class="fa-solid fa-circle-dollar-to-slot <%= e.signal_recently_funded ? 'text-green-400' : 'text-brand-textMuted' %> text-sm"></i>
+        </div>
+        <div>
+          <p class="text-sm font-semibold <%= e.signal_recently_funded ? 'text-green-400' : 'text-brand-textMuted' %>">Recently Funded</p>
+          <% if (e.signal_recently_funded) { %>
+          <p class="text-xs text-brand-textMuted mt-0.5"><%= [e.company_funding_stage, e.company_total_funding].filter(Boolean).join(' · ') || 'Funding confirmed from public source' %></p>
+          <% } else { %><p class="text-xs text-brand-textMuted mt-0.5">Not detected</p><% } %>
+        </div>
+        <% if (e.signal_recently_funded) { %><span class="ml-auto px-2 py-0.5 bg-green-500/20 text-green-400 border border-green-500/30 rounded-full text-[10px] font-bold">SIGNAL</span><% } %>
+      </div>
+    </div>
+    <!-- Actively Hiring -->
+    <div class="bg-brand-card border rounded-xl p-4 <%= (e.signal_hiring_roles && e.signal_hiring_roles.length) ? 'border-amber-500/30' : 'border-brand-border opacity-50' %>">
+      <div class="flex items-start gap-3">
+        <div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 mt-0.5 <%= (e.signal_hiring_roles && e.signal_hiring_roles.length) ? 'bg-amber-500/20' : 'bg-brand-border/30' %>">
+          <i class="fa-solid fa-briefcase <%= (e.signal_hiring_roles && e.signal_hiring_roles.length) ? 'text-amber-400' : 'text-brand-textMuted' %> text-sm"></i>
+        </div>
+        <div class="flex-1">
+          <p class="text-sm font-semibold <%= (e.signal_hiring_roles && e.signal_hiring_roles.length) ? 'text-amber-400' : 'text-brand-textMuted' %>">Actively Hiring</p>
+          <% if (e.signal_hiring_roles && e.signal_hiring_roles.length) { %>
+          <div class="flex flex-wrap gap-1 mt-2">
+            <% e.signal_hiring_roles.forEach(r => { %><span class="px-2 py-0.5 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded text-xs"><%= r %></span><% }) %>
+          </div>
+          <% } else { %><p class="text-xs text-brand-textMuted mt-0.5">No open roles detected</p><% } %>
+        </div>
+        <% if (e.signal_hiring_roles && e.signal_hiring_roles.length) { %><span class="px-2 py-0.5 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-full text-[10px] font-bold shrink-0">SIGNAL</span><% } %>
+      </div>
+    </div>
+    <!-- Job Change -->
+    <div class="bg-brand-card border rounded-xl p-4 <%= e.signal_job_change ? 'border-blue-500/30' : 'border-brand-border opacity-50' %>">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 <%= e.signal_job_change ? 'bg-blue-500/20' : 'bg-brand-border/30' %>">
+          <i class="fa-solid fa-person-walking-arrow-right <%= e.signal_job_change ? 'text-blue-400' : 'text-brand-textMuted' %> text-sm"></i>
+        </div>
+        <div>
+          <p class="text-sm font-semibold <%= e.signal_job_change ? 'text-blue-400' : 'text-brand-textMuted' %>">Job Change Detected</p>
+          <p class="text-xs text-brand-textMuted mt-0.5"><%= e.signal_job_change ? 'Contact recently moved to a new role' : 'No recent job change detected' %></p>
+        </div>
+        <% if (e.signal_job_change) { %><span class="ml-auto px-2 py-0.5 bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-full text-[10px] font-bold">SIGNAL</span><% } %>
+      </div>
+    </div>
+    <!-- Tech Adoption -->
+    <% if (e.signal_tech_adoption && e.signal_tech_adoption.length) { %>
+    <div class="bg-brand-card border border-purple-500/30 rounded-xl p-4">
+      <div class="flex items-start gap-3">
+        <div class="w-9 h-9 rounded-xl bg-purple-500/20 flex items-center justify-center shrink-0 mt-0.5">
+          <i class="fa-solid fa-microchip text-purple-400 text-sm"></i>
+        </div>
+        <div class="flex-1">
+          <div class="flex items-center gap-2">
+            <p class="text-sm font-semibold text-purple-400">Tech Adoption Signal</p>
+            <span class="px-2 py-0.5 bg-purple-500/20 text-purple-400 border border-purple-500/30 rounded-full text-[10px] font-bold">SIGNAL</span>
+          </div>
+          <p class="text-xs text-brand-textMuted mt-0.5">Recently adopted tools:</p>
+          <div class="flex flex-wrap gap-1 mt-2">
+            <% e.signal_tech_adoption.forEach(t => { %><span class="px-2 py-0.5 bg-purple-500/10 text-purple-300 border border-purple-500/20 rounded text-xs font-mono"><%= t %></span><% }) %>
+          </div>
+        </div>
+      </div>
+    </div>
+    <% } %>
+    <!-- Pain Keywords -->
+    <% if (e.signal_pain_keywords && e.signal_pain_keywords.length) { %>
+    <div class="bg-brand-card border border-red-500/20 rounded-xl p-4">
+      <div class="flex items-start gap-3">
+        <div class="w-9 h-9 rounded-xl bg-red-500/10 flex items-center justify-center shrink-0 mt-0.5">
+          <i class="fa-solid fa-fire text-red-400 text-sm"></i>
+        </div>
+        <div class="flex-1">
+          <div class="flex items-center gap-2">
+            <p class="text-sm font-semibold text-red-400">Inferred Pain Points</p>
+            <span class="px-2 py-0.5 bg-red-500/20 text-red-400 border border-red-500/30 rounded-full text-[10px] font-bold">SIGNAL</span>
+          </div>
+          <p class="text-xs text-brand-textMuted mt-0.5">From job listings and company news:</p>
+          <div class="flex flex-wrap gap-1 mt-2">
+            <% e.signal_pain_keywords.forEach(k => { %><span class="px-2 py-0.5 bg-red-500/10 text-red-300 border border-red-500/20 rounded text-xs"><%= k %></span><% }) %>
+          </div>
+        </div>
+      </div>
+    </div>
+    <% } %>
+    <% } %>
+  </div>
+
+  <!-- ── Data Provenance Tab ── -->
+  <div id="etab-provenance" class="enrich-tab-panel hidden">
+    <div class="bg-brand-card border border-brand-border rounded-xl overflow-hidden">
+      <div class="px-5 py-4 border-b border-brand-border">
+        <h3 class="font-semibold text-sm">Source Citations</h3>
+        <p class="text-xs text-brand-textMuted mt-0.5">Every field stored has a verified source URL. Fields without a source URL are never stored.</p>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs">
+          <thead>
+            <tr class="border-b border-brand-border text-brand-textMuted uppercase tracking-wide text-[10px]">
+              <th class="px-4 py-3 text-left font-medium">Field</th>
+              <th class="px-4 py-3 text-left font-medium">Value</th>
+              <th class="px-4 py-3 text-left font-medium">Confidence</th>
+              <th class="px-4 py-3 text-left font-medium">Source</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-brand-border/40">
+            <% for (const [field, meta] of Object.entries(fieldMeta || {})) { %>
+            <% const rawVal = e[field]; %>
+            <% if (!rawVal) continue; %>
+            <tr class="hover:bg-brand-dark/30 transition-colors">
+              <td class="px-4 py-3 font-mono text-brand-textMuted"><%= field.replace(/_/g,' ') %></td>
+              <td class="px-4 py-3 max-w-[200px] truncate">
+                <% if (Array.isArray(rawVal)) { %><%= rawVal.slice(0,3).join(', ') %><%= rawVal.length > 3 ? ` +${rawVal.length-3}` : '' %><% } else if (typeof rawVal === 'object') { %><span class="text-brand-textMuted">[object]</span><% } else { %><%= String(rawVal).slice(0,60) %><% } %>
+              </td>
+              <td class="px-4 py-3">
+                <div class="flex items-center gap-2">
+                  <div class="w-16 h-1.5 bg-brand-border rounded-full overflow-hidden">
+                    <div class="h-full rounded-full <%= (meta.confidence||0) >= 90 ? 'bg-green-500' : (meta.confidence||0) >= 70 ? 'bg-amber-500' : 'bg-red-500' %>" style="width:<%= meta.confidence||0 %>%"></div>
+                  </div>
+                  <span class="<%= (meta.confidence||0) >= 90 ? 'text-green-400' : (meta.confidence||0) >= 70 ? 'text-amber-400' : 'text-red-400' %> font-medium"><%= meta.confidence || 0 %>%</span>
+                </div>
+              </td>
+              <td class="px-4 py-3">
+                <% if (meta.sourceUrl) { %>
+                <a href="<%= meta.sourceUrl %>" target="_blank" rel="noopener" class="text-brand-primary hover:underline flex items-center gap-1 max-w-[180px] truncate">
+                  <i class="fa-solid fa-link text-[9px] shrink-0"></i>
+                  <%= (() => { try { return new URL(meta.sourceUrl).hostname; } catch { return meta.sourceUrl.slice(0,30); } })() %>
+                </a>
+                <% } else { %><span class="text-brand-textMuted">—</span><% } %>
+              </td>
+            </tr>
+            <% } %>
+          </tbody>
+        </table>
+      </div>
+      <div class="px-5 py-3 border-t border-brand-border bg-brand-sidebar/20">
+        <p class="text-[11px] text-brand-textMuted">
+          Model: <span class="text-white"><%= e.enrichment_model || 'claude-sonnet-4-20250514' %></span> ·
+          Passes: <span class="text-white"><%= e.enrichment_passes || 3 %></span> ·
+          <%= e.tokens_used ? `Tokens: ${e.tokens_used.toLocaleString()} ·` : '' %>
+          Version: v<%= e.enrichment_version || 1 %>
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <% } %><!-- end noData check -->
+
+</div><!-- #enrichment-root -->
+
+<style>.enrich-tab-active { color:#623CEA; border-bottom:2px solid #623CEA; }</style>
+<script>
+(function() {
+  // Tab switching
+  document.querySelectorAll('.enrich-tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.enrich-tab-btn').forEach(b => { b.classList.remove('enrich-tab-active'); b.classList.add('text-brand-textMuted'); });
+      document.querySelectorAll('.enrich-tab-panel').forEach(p => p.classList.add('hidden'));
+      btn.classList.add('enrich-tab-active');
+      btn.classList.remove('text-brand-textMuted');
+      const panel = document.getElementById('etab-' + btn.dataset.etab);
+      if (panel) panel.classList.remove('hidden');
+    });
+  });
+})();
+
+function startEnrich(force) {
+  const btn = document.getElementById('enrich-btn');
+  if (btn) { btn.disabled = true; btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin mr-1"></i>Starting…'; }
+  fetch('/enrichment/contacts/<%= contact.id %>/enrich', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ force: !!force }),
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.error) { window.toastError && toastError(d.error); if (btn) { btn.disabled=false; btn.innerHTML='<i class="fa-solid fa-wand-magic-sparkles text-xs"></i> Enrich Now'; } return; }
+    window.toastSuccess && toastSuccess('Enrichment started! This may take 1-2 minutes.');
+    if (d.jobId) {
+      setTimeout(() => window.location.replace(window.location.pathname + '#tab-enrichment'), 2000);
+    }
+  })
+  .catch(() => {
+    window.toastError && toastError('Failed to start enrichment');
+    if (btn) { btn.disabled=false; btn.innerHTML='<i class="fa-solid fa-wand-magic-sparkles text-xs"></i> Enrich Now'; }
+  });
+}
+
+// Auto-reload if currently running/pending (stay on enrichment tab)
+<% if (enrichment && ['running','pending'].includes(enrichment.enrichment_status)) { %>
+setTimeout(() => window.location.replace(window.location.pathname + '#tab-enrichment'), 8000);
+<% } %>
+</script>

@@ -1,0 +1,43 @@
+.filter-bar{display:flex;gap:10px;align-items:center;margin-bottom:16px;flex-wrap:wrap}
+
+/* Contacts page polish */
+.contacts-header .page-title { letter-spacing: -0.2px; }
+.contacts-stats { margin-bottom: 14px; }
+.contacts-stats .stat-card { padding: 14px 16px; border-radius: 12px; }
+.contacts-stats .stat-value { font-size: 22px; }
+
+.contacts-filter-card { margin-bottom: 12px; border-color: var(--border2); }
+.contacts-filter-card .card-body { padding: 14px; }
+.contacts-filter-bar { margin-bottom: 0; gap: 8px; }
+.contacts-filter-bar .form-input { height: 36px; padding: 8px 10px; border-radius: 10px; }
+.contacts-source-filter { min-width: 260px; }
+
+.contacts-bulk-bar {
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: 10px;
+}
+
+.contacts-table-card {
+  border-radius: 14px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+.contacts-table-card .data-table thead th {
+  font-size: 10.5px;
+  letter-spacing: 0.6px;
+  color: var(--text2);
+  background: linear-gradient(180deg, #1a2030, #171d2c);
+}
+.contacts-table-card .data-table tbody td { padding: 13px 14px; }
+.contacts-table-card .data-table tbody tr:hover { background: #232b3d; }
+
+.contacts-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+  padding: 0 2px;
+}

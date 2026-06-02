@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<%- include('../layout/_head', { title: segment.name }) %>
+<body class="bg-brand-dark text-gray-100 font-sans antialiased">
+<%- include('../layout/_sidebar', { page: 'segments', user }) %>
+<div id="main-wrapper" class="flex flex-col min-h-screen">
+<%- include('../layout/_header', { breadcrumbs, user }) %>
+<main class="flex-1 overflow-y-auto p-6">
+
+    <!-- Header -->
+    <div class="flex items-start justify-between mb-6">
+        <div>
+            <h1 class="text-xl font-semibold"><%= segment.name %></h1>
+            <% if (segment.description) { %><p class="text-sm text-brand-textMuted mt-1"><%= segment.description %></p><% } %>
+            <p class="text-xs text-brand-textMuted mt-2 max-w-2xl">Segments filter your <strong class="text-white/85">shared contact database</strong> (used for email and WhatsApp). For WhatsApp opt-ins: ensure contacts have <strong class="text-white/85">WhatsApp phone</strong> on their profile, then use <a href="/whatsapp/optins" class="text-green-400 hover:underline">WhatsApp → Opt-ins</a> to import this segment or all numbers.</p>
+        </div>
+        <div class="flex gap-2">
+            <a href="/segments/<%= segment.id %>/export" class="px-3.5 py-2 bg-btnSecondary border border-btnBorder rounded-lg text-sm font-medium hover:bg-brand-border/50 transition-all">
+                <i class="fa-solid fa-download mr-1.5"></i>Export CSV
+            </a>
+            <form action="/segments/<%= segment.id %>/refresh" method="POST" class="inline" id="refresh-form">
+                <button type="button" id="refresh-btn" onclick="refreshCount()" class="px-3.5 py-2 bg-btnSecondary border border-btnBorder rounded-lg text-sm font-medium hover:bg-brand-border/50 transition-all">
+                    <i class="fa-solid fa-rotate-right mr-1.5" id="refresh-icon"></i>Refresh Count
+                </button>
+            </form>
+            <% if (user && user.role !== 'editor' && user.role !== 'lead_manager' && user.role !== 'campaign_manager') { %>
+            <form action="/segments/<%= segment.id %>" method="POST" class="inline">
+                <input type="hidden" name="_method" value="DELETE">
+                <button type="submit" onclick="return confirm('Delete this segment?')" class="px-3.5 py-2 bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg text-sm font-medium hover:bg-red-500/20 transition-all">
+                    <i class="fa-solid fa-trash mr-1.5"></i>Delete
+                </button>
+            </form>
+            <% } %>
+        </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-3 gap-4 mb-6">
+        <div class="bg-brand-card border border-brand-border rounded-xl p-4">
+            <p class="text-xs text-brand-textMuted uppercase tracking-wide mb-2">Total Contacts</p>
+            <p class="text-3xl font-bold text-brand-primary"><%= (segment.contact_count||0).toLocaleString() %></p>
+        </div>
+        <div class="bg-brand-card border border-brand-border rounded-xl p-4">
+            <p class="text-xs text-brand-textMuted uppercase tracking-wide mb-2">Filters Applied</p>
+            <p class="text-3xl font-bold text-white"><%= segment.filters && segment.filters.rules ? segment.filters.rules.length : 0 %></p>
+        </div>
+        <div class="bg-brand-card border border-brand-border rounded-xl p-4">
+            <p class="text-xs text-brand-textMuted uppercase tracking-wide mb-2">Last Updated</p>
+            <p class="text-lg font-semibold text-white"><%= new Date(segment.updated_at).toLocaleDateString() %></p>
+        </div>
+    </div>
+
+    <!-- Filter Summary -->
+    <% if (segment.filters && segment.filters.rules && segment.filters.rules.length > 0) { %>
+    <div class="bg-brand-card border border-brand-border rounded-xl p-5 mb-6">
+        <h3 class="font-semibold text-sm mb-3">Active Filters</h3>
+        <div class="flex flex-wrap gap-2">
+            <% segment.filters.rules.forEach(rule => { %>
+            <span class="px-3 py-1.5 bg-brand-primary/10 border border-brand-primary/20 rounded-lg text-xs text-brand-primary">
+                <span class="font-medium"><%= rule.field %></span> <span class="text-brand-textMuted"><%= rule.op %></span> <span class="font-medium"><%= rule.value %></span>
+            </span>
+            <% }) %>
+        </div>
+    </div>
+    <% } %>
+
+    <!-- Contacts Preview Table -->
+    <div class="bg-brand-card border border-brand-border rounded-xl overflow-hidden">
+        <div class="p-5 border-b border-brand-border flex items-center justify-between">
+            <h2 class="font-semibold">Contacts (preview, first 50)</h2>
+            <a href="/contacts?segment=<%= segment.id %>" class="text-xs text-brand-primary hover:underline">View all</a>
+        </div>
+        <% if (!contacts || contacts.length === 0) { %>
+        <p class="p-6 text-center text-sm text-brand-textMuted">No contacts match these filters</p>
+        <% } else { %>
+        <div class="overflow-x-auto">
+            <table class="w-full text-sm">
+                <thead class="bg-brand-sidebar/30 border-b border-brand-border text-[11px] uppercase tracking-wider text-brand-textMuted">
+                    <tr>
+                        <th class="px-5 py-3 text-left font-medium">Name</th>
+                        <th class="px-5 py-3 text-left font-medium">Email</th>
+                        <th class="px-5 py-3 text-left font-medium">Company</th>
+                        <th class="px-5 py-3 text-left font-medium">Status</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-brand-border/40">
+                    <% contacts.forEach(c => {
+                        const name = [c.first_name, c.last_name].filter(Boolean).join(' ') || c.email;
+                        const statusCls = c.status === 'active' ? 'bg-green-500/10 text-green-500' : 'bg-gray-500/10 text-gray-400';
+                    %>
+                    <tr class="hover:bg-brand-sidebar/20 transition-colors">
+                        <td class="px-5 py-3.5 font-medium"><a href="/contacts/<%= c.id %>" class="hover:text-brand-primary"><%= name %></a></td>
+                        <td class="px-5 py-3.5 text-brand-textMuted"><%= c.email %></td>
+                        <td class="px-5 py-3.5 text-brand-textMuted"><%= c.company || '—' %></td>
+                        <td class="px-5 py-3.5"><span class="px-2 py-0.5 rounded-full text-[10px] font-bold capitalize <%= statusCls %>"><%= c.status %></span></td>
+                    </tr>
+                    <% }) %>
+                </tbody>
+            </table>
+        </div>
+        <% } %>
+    </div>
+</main>
+</div>
+<div id="toast-container"></div>
+<script>
+(function(){const btn=document.getElementById('sidebar-toggle');const sidebar=document.getElementById('sidebar');const wrapper=document.getElementById('main-wrapper');if(btn)btn.addEventListener('click',()=>{sidebar.classList.toggle('collapsed');wrapper.style.marginLeft=sidebar.classList.contains('collapsed')?'60px':'240px';});})();
+
+function refreshCount() {
+    const icon = document.getElementById('refresh-icon');
+    const btn  = document.getElementById('refresh-btn');
+    icon.classList.add('fa-spin');
+    btn.disabled = true;
+    fetch('/segments/<%= segment.id %>/refresh', {
+        method: 'POST',
+        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' }
+    })
+    .then(r => r.json())
+    .then(d => {
+        if (d.contact_count !== undefined) {
+            // Update the stat card in place
+            document.querySelector('.text-3xl.font-bold.text-brand-primary').textContent = d.contact_count.toLocaleString();
+            if (window.toastSuccess) toastSuccess('Count refreshed: ' + d.contact_count + ' contacts');
+        } else if (d.error) {
+            if (window.toastError) toastError(d.error);
+        }
+    })
+    .catch(() => { if (window.toastError) toastError('Refresh failed'); })
+    .finally(() => { icon.classList.remove('fa-spin'); btn.disabled = false; });
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<%- include('../layout/_head', { title: 'Settings' }) %>
+<body class="bg-brand-dark text-gray-100 font-sans antialiased">
+<%- include('../layout/_sidebar', { page: 'settings', user }) %>
+<div id="main-wrapper" class="flex flex-col min-h-screen">
+<%- include('../layout/_header', { breadcrumbs, user }) %>
+<main class="flex-1 overflow-y-auto">
+
+    <div class="max-w-5xl mx-auto p-8 flex flex-col lg:flex-row gap-8" id="settings-container">
+
+        <!-- Left Sub-Nav -->
+        <nav id="settings-nav" class="w-full lg:w-[200px] space-y-1 lg:sticky lg:top-24 h-fit shrink-0">
+            <a href="#profile" class="flex items-center px-4 py-2 text-[13px] font-medium rounded-md bg-brand-primary/10 text-brand-primary border-l-2 border-brand-primary" id="nav-profile">
+                <i class="fa-solid fa-user w-4 mr-2 text-xs"></i>Profile
+            </a>
+            <a href="#email-config" class="flex items-center px-4 py-2 text-[13px] font-medium rounded-md text-brand-textMuted hover:text-white transition-colors" id="nav-email-config">
+                <i class="fa-solid fa-envelope w-4 mr-2 text-xs"></i>Email Config
+            </a>
+            <a href="#api-keys" class="flex items-center px-4 py-2 text-[13px] font-medium rounded-md text-brand-textMuted hover:text-white transition-colors" id="nav-api-keys">
+                <i class="fa-solid fa-key w-4 mr-2 text-xs"></i>API Keys
+            </a>
+            <a href="#password" class="flex items-center px-4 py-2 text-[13px] font-medium rounded-md text-brand-textMuted hover:text-white transition-colors" id="nav-password">
+                <i class="fa-solid fa-lock w-4 mr-2 text-xs"></i>Password
+            </a>
+            <a href="/users" class="flex items-center px-4 py-2 text-[13px] font-medium rounded-md text-brand-textMuted hover:text-white transition-colors">
+                <i class="fa-solid fa-users w-4 mr-2 text-xs"></i>Team Members
+            </a>
+            <% if (user && (user.role === 'superadmin' || user.role === 'admin')) { %>
+            <a href="/settings/field-permissions" class="flex items-center px-4 py-2 text-[13px] font-medium rounded-md text-brand-textMuted hover:text-white transition-colors">
+                <i class="fa-solid fa-table-columns w-4 mr-2 text-xs"></i>Field Permissions
+            </a>
+            <a href="/settings/user-scopes" class="flex items-center px-4 py-2 text-[13px] font-medium rounded-md text-brand-textMuted hover:text-white transition-colors">
+                <i class="fa-solid fa-shield-halved w-4 mr-2 text-xs"></i>Data Scopes
+            </a>
+            <% } %>
+            <div class="flex items-center justify-between px-4 py-2 text-[13px] font-medium text-brand-textMuted/40 cursor-not-allowed">
+                <span class="flex items-center gap-2"><i class="fa-solid fa-credit-card w-4 text-xs"></i>Billing</span>
+                <i class="fa-solid fa-lock text-[10px]"></i>
+            </div>
+        </nav>
+
+        <!-- Right Content -->
+        <form action="/settings" method="POST" class="flex-1 space-y-6 pb-20">
+
+            <!-- Profile Section -->
+            <section id="profile" class="bg-brand-card border border-brand-border rounded-xl overflow-hidden">
+                <div class="p-5 border-b border-brand-border">
+                    <h2 class="font-semibold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-user text-brand-primary text-sm"></i>Profile
+                    </h2>
+                    <p class="text-xs text-brand-textMuted mt-1">Manage your personal information</p>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div class="flex items-center gap-5 mb-4">
+                        <div class="w-16 h-16 rounded-full bg-brand-primary/20 flex items-center justify-center text-2xl font-bold text-brand-primary">
+                            <%= user ? user.name.slice(0,2).toUpperCase() : 'U' %>
+                        </div>
+                        <div>
+                            <p class="font-semibold"><%= user ? user.name : '' %></p>
+                            <p class="text-sm text-brand-textMuted"><%= user ? user.email : '' %></p>
+                            <span class="text-[11px] px-2 py-0.5 bg-brand-primary/10 text-brand-primary rounded-full border border-brand-primary/20 mt-1 inline-block">Pro Plan</span>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-brand-textMuted uppercase tracking-wide mb-1.5">Full Name</label>
+                            <input type="text" name="name" value="<%= user ? user.name : '' %>"
+                                class="w-full bg-btnSecondary border border-btnBorder rounded-lg py-2.5 px-3.5 text-sm focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary/20 transition-all">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-brand-textMuted uppercase tracking-wide mb-1.5">Email</label>
+                            <input type="email" value="<%= user ? user.email : '' %>" disabled
+                                class="w-full bg-brand-border/10 border border-brand-border/30 rounded-lg py-2.5 px-3.5 text-sm text-brand-textMuted cursor-not-allowed">
+                            <p class="text-[11px] text-brand-textMuted mt-1">Email cannot be changed</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Email Config Section -->
+            <section id="email-config" class="bg-brand-card border border-brand-border rounded-xl overflow-hidden">
+                <div class="p-5 border-b border-brand-border">
+                    <h2 class="font-semibold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-envelope text-brand-primary text-sm"></i>Email Configuration
+                    </h2>
+                    <p class="text-xs text-brand-textMuted mt-1">Configure your sender identity and sending preferences</p>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-brand-textMuted uppercase tracking-wide mb-1.5">From Name</label>
+                            <input type="text" name="from_name" placeholder="Your Name"
+                                class="w-full bg-btnSecondary border border-btnBorder rounded-lg py-2.5 px-3.5 text-sm focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary/20 transition-all">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-brand-textMuted uppercase tracking-wide mb-1.5">From Email</label>
+                            <input type="email" name="from_email" placeholder="outreach@yourdomain.com"
+                                class="w-full bg-btnSecondary border border-btnBorder rounded-lg py-2.5 px-3.5 text-sm focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary/20 transition-all">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-brand-textMuted uppercase tracking-wide mb-1.5">Booking / Calendar URL</label>
+                        <input type="url" name="booking_url" placeholder="https://calendly.com/your-link"
+                            class="w-full bg-btnSecondary border border-btnBorder rounded-lg py-2.5 px-3.5 text-sm focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary/20 transition-all">
+                        <p class="text-[11px] text-brand-textMuted mt-1">Used as <code class="text-brand-primary">{{ booking_url }}</code> variable in email templates</p>
+                    </div>
+                    <div class="p-4 bg-brand-dark/50 border border-brand-border/50 rounded-lg">
+                        <div class="flex items-center gap-2 mb-2">
+                            <i class="fa-solid fa-circle-info text-brand-primary text-xs"></i>
+                            <span class="text-xs font-medium text-white">Sending Limits</span>
+                        </div>
+                        <p class="text-[12px] text-brand-textMuted">Daily sending limits are configured per-campaign. You can set a limit when creating or editing a campaign.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- API Keys Section -->
+            <section id="api-keys" class="bg-brand-card border border-brand-border rounded-xl overflow-hidden">
+                <div class="p-5 border-b border-brand-border">
+                    <h2 class="font-semibold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-key text-brand-primary text-sm"></i>API Keys
+                    </h2>
+                    <p class="text-xs text-brand-textMuted mt-1">API keys are configured via environment variables for security</p>
+                </div>
+                <div class="p-6 space-y-3">
+                    <% [['Anthropic API (AI Research)', 'ANTHROPIC_API_KEY'], ['Resend API (Email Delivery)', 'RESEND_API_KEY'], ['App URL (Webhook Base)', 'APP_URL']].forEach(([label, envKey]) => { %>
+                    <div class="flex items-center justify-between p-3.5 bg-brand-dark rounded-lg border border-brand-border/50">
+                        <div>
+                            <span class="text-sm font-medium"><%= label %></span>
+                            <p class="text-[11px] text-brand-textMuted mt-0.5"><%= envKey %></p>
+                        </div>
+                        <span class="text-xs px-2.5 py-1 bg-green-500/10 text-green-500 rounded-full border border-green-500/20">
+                            <i class="fa-solid fa-check mr-1 text-[10px]"></i>Configured
+                        </span>
+                    </div>
+                    <% }) %>
+                    <p class="text-[12px] text-brand-textMuted pt-2">To update API keys, edit the <code class="text-brand-primary">.env</code> file and restart the server.</p>
+                </div>
+            </section>
+
+            <!-- Password Section -->
+            <section id="password" class="bg-brand-card border border-brand-border rounded-xl overflow-hidden">
+                <div class="p-5 border-b border-brand-border">
+                    <h2 class="font-semibold text-white flex items-center gap-2">
+                        <i class="fa-solid fa-lock text-brand-primary text-sm"></i>Change Password
+                    </h2>
+                    <p class="text-xs text-brand-textMuted mt-1">Update your login password</p>
+                </div>
+                <div class="p-6 space-y-4">
+                    <div>
+                        <label class="block text-xs font-medium text-brand-textMuted uppercase tracking-wide mb-1.5">Current Password</label>
+                        <div class="relative">
+                            <input type="password" name="current_password" id="curr-pw" placeholder="Enter current password"
+                                class="w-full bg-btnSecondary border border-btnBorder rounded-lg py-2.5 px-3.5 pr-10 text-sm focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary/20 transition-all">
+                            <button type="button" onclick="togglePw('curr-pw',this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-brand-textMuted hover:text-white"><i class="fa-regular fa-eye text-xs"></i></button>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-medium text-brand-textMuted uppercase tracking-wide mb-1.5">New Password</label>
+                            <div class="relative">
+                                <input type="password" name="new_password" id="new-pw" placeholder="New password"
+                                    class="w-full bg-btnSecondary border border-btnBorder rounded-lg py-2.5 px-3.5 pr-10 text-sm focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary/20 transition-all">
+                                <button type="button" onclick="togglePw('new-pw',this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-brand-textMuted hover:text-white"><i class="fa-regular fa-eye text-xs"></i></button>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-brand-textMuted uppercase tracking-wide mb-1.5">Confirm Password</label>
+                            <div class="relative">
+                                <input type="password" name="confirm_password" id="conf-pw" placeholder="Confirm new password"
+                                    class="w-full bg-btnSecondary border border-btnBorder rounded-lg py-2.5 px-3.5 pr-10 text-sm focus:outline-none focus:border-brand-primary focus:ring-1 focus:ring-brand-primary/20 transition-all">
+                                <button type="button" onclick="togglePw('conf-pw',this)" class="absolute right-3 top-1/2 -translate-y-1/2 text-brand-textMuted hover:text-white"><i class="fa-regular fa-eye text-xs"></i></button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Save Button -->
+            <div class="flex justify-end pt-2">
+                <button type="submit" class="px-6 py-2.5 bg-brand-primary text-white rounded-lg text-sm font-semibold hover:bg-blue-500 transition-all">
+                    <i class="fa-solid fa-save mr-2"></i>Save Changes
+                </button>
+            </div>
+        </form>
+    </div>
+</main>
+</div>
+<div id="toast-container"></div>
+<script>
+(function(){
+    const btn=document.getElementById('sidebar-toggle');
+    const sidebar=document.getElementById('sidebar');
+    const wrapper=document.getElementById('main-wrapper');
+    if(btn)btn.addEventListener('click',()=>{sidebar.classList.toggle('collapsed');wrapper.style.marginLeft=sidebar.classList.contains('collapsed')?'60px':'240px';});
+
+    // Highlight active nav on scroll
+    const sections = ['profile','email-config','api-keys','password'];
+    window.addEventListener('scroll', () => {
+        let active = sections[0];
+        sections.forEach(id => {
+            const el = document.getElementById(id);
+            if (el && el.getBoundingClientRect().top <= 120) active = id;
+        });
+        sections.forEach(id => {
+            const nav = document.getElementById('nav-'+id);
+            if (!nav) return;
+            if (id === active) { nav.classList.add('bg-brand-primary/10','text-brand-primary','border-l-2','border-brand-primary'); nav.classList.remove('text-brand-textMuted'); }
+            else { nav.classList.remove('bg-brand-primary/10','text-brand-primary','border-l-2','border-brand-primary'); nav.classList.add('text-brand-textMuted'); }
+        });
+    }, { passive: true });
+})();
+
+function togglePw(id, btn) {
+    const input = document.getElementById(id);
+    const icon = btn.querySelector('i');
+    if (input.type === 'password') { input.type = 'text'; icon.className = 'fa-regular fa-eye-slash text-xs'; }
+    else { input.type = 'password'; icon.className = 'fa-regular fa-eye text-xs'; }
+}
+</script>
+</body>
+</html>

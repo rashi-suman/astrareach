@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.rashi.astrareach.daily</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>/Users/rashisuman/Desktop/PROJECTS/astrareach/.automation/daily-commit.sh</string>
+    </array>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/rashisuman/Desktop/PROJECTS/astrareach</string>
+
+    <!-- Runs every day at 3:00 PM local time -->
+    <key>StartCalendarInterval</key>
+    <dict>
+        <key>Hour</key>
+        <integer>15</integer>
+        <key>Minute</key>
+        <integer>0</integer>
+    </dict>
+
+    <!-- If the Mac was asleep at 10:30, run as soon as it wakes -->
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/rashisuman/Desktop/PROJECTS/astrareach/.automation/launchd.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/rashisuman/Desktop/PROJECTS/astrareach/.automation/launchd.err.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+</dict>
+</plist>

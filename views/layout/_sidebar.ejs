@@ -1,0 +1,152 @@
+<%
+const navPage = typeof page !== 'undefined' ? page : '';
+const sc = (name) => navPage === name ? 'active-nav flex items-center h-10 px-5 text-sm font-medium' : 'nav-item flex items-center h-10 px-5 text-sm font-medium text-brand-textMuted transition-colors';
+const totalC = typeof totalContacts !== 'undefined' ? totalContacts : '';
+const activeC = typeof activeCampaigns !== 'undefined' ? activeCampaigns : '';
+const u = typeof user !== 'undefined' && user ? user : { name: 'Admin', role: 'admin' };
+const initials = u.avatar_initials || (u.name ? u.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase() : 'AD');
+const navPath = typeof sidebarPath !== 'undefined' ? sidebarPath : (typeof waNavPath !== 'undefined' ? waNavPath : '');
+const waOpen = navPath.startsWith('/whatsapp');
+const emailOpen = navPath.startsWith('/campaigns') || navPath.startsWith('/templates') || navPath.startsWith('/analytics');
+const pathHit = (prefix) => navPath === prefix || navPath.startsWith(prefix + '/');
+/* Dropdown child: same active / inactive pattern as top-level links, indented */
+const subClass = (active) => active
+  ? 'active-nav flex items-center h-10 pl-8 pr-5 text-sm font-medium'
+  : 'nav-item flex items-center h-10 pl-8 pr-5 text-sm font-medium text-brand-textMuted transition-colors';
+/* Parent row for collapsible groups — always looks like a normal nav row (no purple bar until hover) */
+const navGroupBtn = 'nav-item flex items-center h-10 px-5 w-full text-sm font-medium text-brand-textMuted transition-colors text-left';
+%>
+<aside id="sidebar" class="fixed left-0 top-0 h-full w-[240px] bg-brand-sidebar border-r border-brand-border flex flex-col z-50">
+    <!-- Logo -->
+    <div id="sidebar-logo" class="h-14 flex items-center px-4 border-b border-brand-border justify-between overflow-hidden">
+        <div class="flex items-center gap-2.5 flex-1 min-w-0 nav-label">
+            <img src="/images/logo-main.png" alt="AstraReach" class="w-7 h-7 shrink-0 object-contain">
+            <span class="text-sm font-bold tracking-tight truncate text-white">AstraReach</span>
+        </div>
+        <!-- Toggle button: always visible (no nav-label / sidebar-logo-text class) -->
+        <button id="sidebar-toggle" class="shrink-0 ml-1 text-brand-textMuted hover:text-white p-1.5 rounded hover:bg-brand-border/40 transition-colors" title="Toggle sidebar">
+            <svg id="toggle-icon" class="w-4 h-4 transition-transform duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 19l-7-7 7-7m8 14l-7-7 7-7"/>
+            </svg>
+        </button>
+    </div>
+
+    <!-- Nav -->
+    <nav id="sidebar-nav" class="flex-1 py-4 overflow-y-auto">
+        <a href="/dashboard" class="<%= sc('dashboard') %>">
+            <i class="fa-solid fa-table-columns w-5 mr-3 shrink-0"></i>
+            <span class="nav-label">Dashboard</span>
+        </a>
+        <a href="/contacts" class="<%= sc('contacts') %>">
+            <i class="fa-regular fa-address-book w-5 mr-3 shrink-0"></i>
+            <span class="flex-1 nav-label">Contacts</span>
+            <% if (totalC) { %><span class="text-[10px] bg-brand-border px-1.5 py-0.5 rounded text-white nav-label"><%= totalC >= 1000 ? (totalC/1000).toFixed(0)+'K' : totalC %></span><% } %>
+        </a>
+        <a href="/segments" class="<%= sc('segments') %>">
+            <i class="fa-solid fa-layer-group w-5 mr-3 shrink-0"></i>
+            <span class="nav-label">Segments</span>
+        </a>
+
+        <!-- Email: campaigns, templates, analytics -->
+        <div class="email-nav-group px-0">
+            <button type="button" id="email-sidebar-toggle" aria-expanded="<%= emailOpen ? 'true' : 'false' %>" class="<%= navGroupBtn %>">
+                <i class="fa-regular fa-envelope w-5 mr-3 shrink-0"></i>
+                <span class="flex-1 nav-label">Email</span>
+                <i id="email-sidebar-chevron" class="fa-solid fa-chevron-down text-[10px] text-brand-textMuted nav-label transition-transform duration-200 shrink-0 <%= emailOpen ? 'rotate-180' : '' %>"></i>
+            </button>
+            <div id="email-sidebar-submenu" class="<%= emailOpen ? '' : 'hidden' %> py-1 border-l border-brand-border/60 ml-7 mr-3 my-0.5 space-y-0.5">
+                <% if (u.role !== 'editor' && u.role !== 'lead_manager') { %>
+                <a href="/campaigns" class="<%= subClass(pathHit('/campaigns')) %>">
+                    <i class="fa-solid fa-paper-plane w-5 mr-3 shrink-0"></i>
+                    <span class="flex-1 nav-label">Campaigns</span>
+                    <% if (activeC) { %><span class="text-[10px] bg-brand-primary/20 text-brand-primary px-1.5 py-0.5 rounded nav-label"><%= activeC %> active</span><% } %>
+                </a>
+                <% } %>
+                <a href="/templates" class="<%= subClass(pathHit('/templates')) %>">
+                    <i class="fa-regular fa-file-code w-5 mr-3 shrink-0"></i><span class="nav-label">Templates</span>
+                </a>
+                <a href="/analytics" class="<%= subClass(pathHit('/analytics')) %>">
+                    <i class="fa-solid fa-chart-line w-5 mr-3 shrink-0"></i><span class="nav-label">Analytics</span>
+                </a>
+            </div>
+        </div>
+
+        <% if (u.role === 'superadmin' || u.role === 'admin') { %>
+        <a href="/users" class="<%= sc('users') %>">
+            <i class="fa-solid fa-users w-5 mr-3 shrink-0"></i>
+            <span class="nav-label">Team</span>
+        </a>
+        <% } %>
+
+        <!-- WhatsApp -->
+        <div class="whatsapp-nav-group px-0">
+            <button type="button" id="wa-sidebar-toggle" aria-expanded="<%= waOpen ? 'true' : 'false' %>" class="<%= navGroupBtn %>">
+                <i class="fa-brands fa-whatsapp w-5 mr-3 shrink-0"></i>
+                <span class="flex-1 text-left nav-label">WhatsApp</span>
+                <i id="wa-sidebar-chevron" class="fa-solid fa-chevron-down text-[10px] text-brand-textMuted nav-label transition-transform duration-200 shrink-0 <%= waOpen ? 'rotate-180' : '' %>"></i>
+            </button>
+            <div id="wa-sidebar-submenu" class="<%= waOpen ? '' : 'hidden' %> py-1 border-l border-brand-border/60 ml-7 mr-3 my-0.5 space-y-0.5">
+                <a href="/whatsapp/campaigns" class="<%= subClass(pathHit('/whatsapp/campaigns')) %>">
+                    <i class="fa-solid fa-paper-plane w-5 mr-3 shrink-0"></i><span class="nav-label">Campaigns</span>
+                </a>
+                <a href="/whatsapp/templates" class="<%= subClass(pathHit('/whatsapp/templates')) %>">
+                    <i class="fa-regular fa-rectangle-list w-5 mr-3 shrink-0"></i><span class="nav-label">Templates</span>
+                </a>
+                <a href="/whatsapp/inbox" class="<%= subClass(pathHit('/whatsapp/inbox')) %>">
+                    <i class="fa-regular fa-message w-5 mr-3 shrink-0"></i><span class="nav-label">Inbox</span>
+                </a>
+                <a href="/whatsapp/analytics" class="<%= subClass(pathHit('/whatsapp/analytics')) %>">
+                    <i class="fa-solid fa-chart-bar w-5 mr-3 shrink-0"></i><span class="nav-label">Analytics</span>
+                </a>
+                <a href="/whatsapp/optins" class="<%= subClass(pathHit('/whatsapp/optins')) %>">
+                    <i class="fa-solid fa-user-check w-5 mr-3 shrink-0"></i><span class="nav-label">Opt-ins</span>
+                </a>
+                <% if (u.role === 'superadmin' || u.role === 'admin') { %>
+                <a href="/whatsapp/phones" class="<%= subClass(pathHit('/whatsapp/phones')) %>">
+                    <i class="fa-solid fa-mobile-screen w-5 mr-3 shrink-0"></i><span class="nav-label">Phone numbers</span>
+                </a>
+                <% } %>
+            </div>
+        </div>
+        <% if (u.role === 'superadmin' || u.role === 'admin') { %>
+        <a href="/settings" class="<%= sc('settings') %>">
+            <i class="fa-solid fa-gear w-5 mr-3 shrink-0"></i>
+            <span class="nav-label">Settings</span>
+        </a>
+        <% } %>
+    </nav>
+
+    <!-- Footer -->
+    <div id="sidebar-footer" class="p-4 border-t border-brand-border flex items-center gap-3">
+        <div class="w-8 h-8 rounded-full bg-brand-primary flex items-center justify-center text-xs font-bold shrink-0">
+            <%= initials %>
+        </div>
+        <div class="flex-1 overflow-hidden sidebar-footer-info nav-label">
+            <p class="text-xs font-semibold truncate"><%= u.name || 'Admin' %></p>
+            <p class="text-[10px] text-brand-textMuted truncate capitalize"><%= u.role || 'admin' %></p>
+        </div>
+        <a href="/settings" class="text-brand-textMuted text-xs cursor-pointer hover:text-white nav-label">
+            <i class="fa-solid fa-gear"></i>
+        </a>
+    </div>
+</aside>
+<script>
+(function () {
+  function bindToggle(btnId, subId, chevId) {
+    var btn = document.getElementById(btnId);
+    var sub = document.getElementById(subId);
+    var ch = document.getElementById(chevId);
+    if (!btn || !sub) return;
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      sub.classList.toggle('hidden');
+      var open = !sub.classList.contains('hidden');
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+      if (ch) ch.classList.toggle('rotate-180', open);
+    });
+  }
+  bindToggle('email-sidebar-toggle', 'email-sidebar-submenu', 'email-sidebar-chevron');
+  bindToggle('wa-sidebar-toggle', 'wa-sidebar-submenu', 'wa-sidebar-chevron');
+})();
+</script>

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<%- include('../../../layout/_head', { title: 'New WA Campaign — Step 3' }) %>
+<body class="bg-brand-dark text-gray-100 font-sans antialiased">
+<%- include('../../../layout/_sidebar', { page: 'whatsapp', user }) %>
+<div id="main-wrapper" class="flex flex-col min-h-screen">
+<%- include('../../../layout/_header', { breadcrumbs, user }) %>
+<main class="flex-1 p-6">
+<div class="max-w-2xl mx-auto">
+
+  <%- include('./_stepper', { step: 3 }) %>
+
+  <form action="/whatsapp/campaigns/new/step/3" method="POST" class="space-y-5 mt-6">
+    <div class="bg-brand-card border border-brand-border rounded-xl p-6 space-y-5">
+      <h2 class="font-bold text-white text-lg">Select Audience</h2>
+      <p class="text-brand-textMuted text-sm">Segments are <strong class="text-white">saved contact filters</strong> (same list as email — not email-only). They can include new rules like <em>WhatsApp phone is filled</em>. Only contacts with a <strong class="text-white">WhatsApp number</strong> are included in the send list.</p>
+
+      <div class="space-y-3">
+        <label class="flex items-start gap-3 p-4 border border-brand-border rounded-xl cursor-pointer hover:border-brand-primary/50 transition-all has-[:checked]:border-brand-primary has-[:checked]:bg-brand-primary/5">
+          <input type="radio" name="audience_source" value="contacts_opted_in" <%= (!draft.audience_source || draft.audience_source === 'contacts_opted_in') ? 'checked' : '' %> class="mt-1">
+          <div>
+            <span class="font-medium text-white text-sm">Contacts marked WhatsApp opted-in</span>
+            <p class="text-xs text-brand-textMuted mt-1">Uses the <code class="text-[10px] bg-brand-sidebar px-1 rounded">whatsapp_opted_in</code> flag on each contact. Import a segment on the <a href="/whatsapp/optins" class="text-brand-primary hover:underline">Opt-ins</a> page to bulk-register consent in the registry too.</p>
+          </div>
+        </label>
+        <label class="flex items-start gap-3 p-4 border border-brand-border rounded-xl cursor-pointer hover:border-brand-primary/50 transition-all has-[:checked]:border-brand-primary has-[:checked]:bg-brand-primary/5">
+          <input type="radio" name="audience_source" value="wa_registry" <%= draft.audience_source === 'wa_registry' ? 'checked' : '' %> class="mt-1">
+          <div>
+            <span class="font-medium text-white text-sm">WhatsApp opt-in registry only</span>
+            <p class="text-xs text-brand-textMuted mt-1">Only people who appear under <strong class="text-white">WhatsApp → Opt-ins</strong> with status <em>Opted In</em>. Use a segment below to narrow to a subset of those contacts (same contact must match the segment).</p>
+          </div>
+        </label>
+      </div>
+
+      <div>
+        <label class="block text-sm text-brand-textMuted mb-1.5">Segment (optional)</label>
+        <select name="segment_id" class="w-full bg-brand-sidebar border border-brand-border rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-brand-primary">
+          <option value="">— No segment (all matching audience above) —</option>
+          <% segments.forEach(s => { %>
+          <option value="<%= s.id %>" <%= draft.segment_id===s.id.toString()?'selected':'' %>><%= s.name %> (<%= s.contact_count||0 %> contacts)</option>
+          <% }) %>
+        </select>
+        <p class="text-[11px] text-brand-textMuted mt-1.5">With no segment: <strong class="text-white/90">opted-in contacts</strong> = every contact in your org with WhatsApp opted-in and a number; <strong class="text-white/90">registry</strong> = every opted-in row in the registry with a matching contact and number.</p>
+      </div>
+    </div>
+
+    <div class="flex justify-between">
+      <a href="/whatsapp/campaigns/new/step/2" class="px-5 py-2.5 bg-brand-sidebar border border-brand-border rounded-lg text-sm hover:border-brand-border/80">← Back</a>
+      <button type="submit" class="px-6 py-2.5 bg-brand-primary text-white rounded-lg text-sm font-semibold hover:bg-purple-500">Next →</button>
+    </div>
+  </form>
+</div>
+</main>
+</div>
+<div id="toast-container"></div>
+</body>
+</html>
