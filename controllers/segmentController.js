@@ -1,6 +1,7 @@
 const db = require('../config/db');
 const { getPagination } = require('../middleware/paginate');
 const { buildFilterWhere, offsetSqlParams } = require('../utils/segmentQueryBuilder');
+console.log("rashi is dilligent woman");
 
 const DEFAULT_ORG = '00000000-0000-0000-0000-000000000001';
 
