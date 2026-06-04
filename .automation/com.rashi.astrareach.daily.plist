@@ -8,11 +8,11 @@
     <key>ProgramArguments</key>
     <array>
         <string>/bin/bash</string>
-        <string>/Users/rashisuman/Desktop/PROJECTS/astrareach/.automation/daily-commit.sh</string>
+        <string>/Users/rashisuman/Projects/astrareach/.automation/daily-commit.sh</string>
     </array>
 
     <key>WorkingDirectory</key>
-    <string>/Users/rashisuman/Desktop/PROJECTS/astrareach</string>
+    <string>/Users/rashisuman/Projects/astrareach</string>
 
     <!-- Runs every day at 3:00 PM local time -->
     <key>StartCalendarInterval</key>
@@ -28,9 +28,9 @@
     <false/>
 
     <key>StandardOutPath</key>
-    <string>/Users/rashisuman/Desktop/PROJECTS/astrareach/.automation/launchd.out.log</string>
+    <string>/Users/rashisuman/Projects/astrareach/.automation/launchd.out.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/rashisuman/Desktop/PROJECTS/astrareach/.automation/launchd.err.log</string>
+    <string>/Users/rashisuman/Projects/astrareach/.automation/launchd.err.log</string>
 
     <key>EnvironmentVariables</key>
     <dict>

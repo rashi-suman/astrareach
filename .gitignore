@@ -1,2 +1,5 @@
 node_modules
 .env
+.interview-prep/
+.automation/.state
+.automation/*.log
