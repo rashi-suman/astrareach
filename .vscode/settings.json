@@ -1,0 +1,10 @@
+{
+  "files.eol": "\n",
+  "editor.tabSize": 2,
+  "editor.insertSpaces": true,
+  "files.trimTrailingWhitespace": true,
+  "files.insertFinalNewline": true,
+  "emmet.includeLanguages": { "ejs": "html" },
+  "files.associations": { "*.ejs": "html" },
+  "search.exclude": { "**/node_modules": true, "package-lock.json": true }
+}

@@ -1,0 +1,8 @@
+{
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "DigitalBrainstem.javascript-ejs-support",
+    "EditorConfig.EditorConfig",
+    "ckolkman.vscode-postgres"
+  ]
+}
