@@ -32,7 +32,7 @@ module.exports = {
       const { name, current_password, new_password, confirm_password } = req.body;
 
       if (name) {
-        await db.query('UPDATE users SET name=$1 WHERE id=$2', [name, req.user.id]);
+        await db.query('UPDATE users SET name=? WHERE id=?', [name, req.user.id]);
       }
 
       if (new_password) {
@@ -40,14 +40,14 @@ module.exports = {
           req.flash && req.flash('error', 'New passwords do not match');
           return res.redirect('/settings');
         }
-        const user = (await db.query('SELECT password_hash FROM users WHERE id=$1', [req.user.id])).rows[0];
+        const user = (await db.query('SELECT password_hash FROM users WHERE id=?', [req.user.id])).rows[0];
         const valid = await bcrypt.compare(current_password || '', user.password_hash);
         if (!valid) {
           req.flash && req.flash('error', 'Current password is incorrect');
           return res.redirect('/settings');
         }
         const hash = await bcrypt.hash(new_password, 10);
-        await db.query('UPDATE users SET password_hash=$1 WHERE id=$2', [hash, req.user.id]);
+        await db.query('UPDATE users SET password_hash=? WHERE id=?', [hash, req.user.id]);
       }
 
       req.flash && req.flash('success', 'Settings saved successfully');
@@ -61,7 +61,7 @@ module.exports = {
       const orgId = req.org?.id || DEFAULT_ORG;
       const existing = await db.query(
         `SELECT role, field_name, can_view, can_edit FROM field_permissions
-         WHERE org_id=$1 AND table_name='contacts'`,
+         WHERE org_id=? AND table_name='contacts'`,
         [orgId],
       );
       // Build lookup: role → { fieldName → { can_view, can_edit } }
@@ -95,9 +95,8 @@ module.exports = {
         if (!name) continue;
         await db.query(
           `INSERT INTO field_permissions (org_id, role, table_name, field_name, can_view, can_edit)
-           VALUES ($1,$2,$3,$4,$5,$6)
-           ON CONFLICT (org_id, role, table_name, field_name)
-           DO UPDATE SET can_view=$5, can_edit=$6, updated_at=NOW()`,
+           VALUES (?,?,?,?,?,?)
+           ON DUPLICATE KEY UPDATE can_view=VALUES(can_view), can_edit=VALUES(can_edit), updated_at=NOW()`,
           [orgId, role, table_name, name,
            can_view === 'true' || can_view === true,
            can_edit === 'true' || can_edit === true],
@@ -119,12 +118,12 @@ module.exports = {
                 uds.scope_type, uds.segment_id, uds.filter_json
          FROM users u
          LEFT JOIN user_data_scopes uds ON uds.user_id = u.id
-         WHERE u.org_id=$1 AND u.is_active=TRUE
+         WHERE u.org_id=? AND u.is_active=TRUE
          ORDER BY u.name`,
         [orgId],
       );
       const segments = await db.query(
-        'SELECT id, name FROM segments WHERE org_id=$1 OR org_id IS NULL ORDER BY name',
+        'SELECT id, name FROM segments WHERE org_id=? OR org_id IS NULL ORDER BY name',
         [orgId],
       );
       res.render('settings/user-scopes', {
@@ -144,7 +143,7 @@ module.exports = {
       const { scope_type, segment_id, filter_json } = req.body;
 
       // Verify target user belongs to same org
-      const check = await db.query('SELECT id FROM users WHERE id=$1 AND org_id=$2', [userId, orgId]);
+      const check = await db.query('SELECT id FROM users WHERE id=? AND org_id=?', [userId, orgId]);
       if (!check.rows.length) {
         req.flash('error', 'User not found');
         return res.redirect('/settings/user-scopes');
@@ -152,21 +151,21 @@ module.exports = {
 
       await db.query(
         `INSERT INTO user_data_scopes (user_id, scope_type, segment_id, filter_json, created_by)
-         VALUES ($1,$2,$3,$4,$5)
-         ON CONFLICT (user_id) DO UPDATE SET
-           scope_type  = EXCLUDED.scope_type,
-           segment_id  = EXCLUDED.segment_id,
-           filter_json = EXCLUDED.filter_json`,
+         VALUES (?,?,?,?,?)
+         ON DUPLICATE KEY UPDATE
+           scope_type  = VALUES(scope_type),
+           segment_id  = VALUES(segment_id),
+           filter_json = VALUES(filter_json)`,
         [userId, scope_type || 'all',
          segment_id || null,
          filter_json ? JSON.stringify(filter_json) : null,
          req.user.id],
       ).catch(() => {
         // No UNIQUE constraint — use DELETE+INSERT
-        return db.query('DELETE FROM user_data_scopes WHERE user_id=$1', [userId]).then(() =>
+        return db.query('DELETE FROM user_data_scopes WHERE user_id=?', [userId]).then(() =>
           db.query(
             `INSERT INTO user_data_scopes (user_id, scope_type, segment_id, filter_json, created_by)
-             VALUES ($1,$2,$3,$4,$5)`,
+             VALUES (?,?,?,?,?)`,
             [userId, scope_type || 'all', segment_id || null,
              filter_json ? JSON.stringify(filter_json) : null, req.user.id],
           ),

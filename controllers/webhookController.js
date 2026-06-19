@@ -7,10 +7,10 @@ const STATUS_WEIGHT = {
 };
 
 async function insertEvent(campaignContactId, eventType, metadata = {}, req = null) {
-  const cc = (await db.query('SELECT * FROM campaign_contacts WHERE id=$1', [campaignContactId])).rows[0];
+  const cc = (await db.query('SELECT * FROM campaign_contacts WHERE id=?', [campaignContactId])).rows[0];
   if (!cc) return null;
 
-  await db.query('INSERT INTO email_events(campaign_contact_id, campaign_id, contact_id, event_type, metadata, ip_address, user_agent) VALUES($1,$2,$3,$4,$5::jsonb,$6,$7)', [
+  await db.query('INSERT INTO email_events(campaign_contact_id, campaign_id, contact_id, event_type, metadata, ip_address, user_agent) VALUES(?,?,?,?,?,?,?)', [
     campaignContactId,
     cc.campaign_id,
     cc.contact_id,
@@ -22,7 +22,7 @@ async function insertEvent(campaignContactId, eventType, metadata = {}, req = nu
 
   const curr = cc.status || 'pending';
   if ((STATUS_WEIGHT[eventType] || 0) >= (STATUS_WEIGHT[curr] || 0)) {
-    await db.query('UPDATE campaign_contacts SET status=$1, last_event_at=NOW() WHERE id=$2', [eventType, campaignContactId]);
+    await db.query('UPDATE campaign_contacts SET status=?, last_event_at=NOW() WHERE id=?', [eventType, campaignContactId]);
   }
   return cc;
 }
@@ -63,8 +63,8 @@ module.exports = {
     try {
       const cc = await insertEvent(req.params.campaignContactId, 'unsubscribed', {}, req);
       if (cc) {
-        await db.query("UPDATE contacts SET status='unsubscribed', updated_at=NOW() WHERE id=$1", [cc.contact_id]);
-        await db.query("UPDATE campaign_contacts SET status='unsubscribed', last_event_at=NOW() WHERE id=$1", [cc.id]);
+        await db.query("UPDATE contacts SET status='unsubscribed', updated_at=NOW() WHERE id=?", [cc.contact_id]);
+        await db.query("UPDATE campaign_contacts SET status='unsubscribed', last_event_at=NOW() WHERE id=?", [cc.id]);
       }
       res.send(`<!doctype html><html><body style="font-family:Inter,sans-serif;background:#0f1117;color:#e8eaf2"><div style="max-width:560px;margin:80px auto"><h2>You've been unsubscribed</h2><p>Your email has been removed from this campaign list.</p></div></body></html>`);
     } catch (e) { res.status(500).send(e.message); }
@@ -85,10 +85,10 @@ module.exports = {
         await insertEvent(ccId, 'delivered', req.body, req);
       } else if (event === 'email.bounced') {
         const cc = await insertEvent(ccId, 'bounced', req.body, req);
-        if (cc) await db.query("UPDATE contacts SET status='bounced', updated_at=NOW() WHERE id=$1", [cc.contact_id]);
+        if (cc) await db.query("UPDATE contacts SET status='bounced', updated_at=NOW() WHERE id=?", [cc.contact_id]);
       } else if (event === 'email.complained') {
         const cc = await insertEvent(ccId, 'unsubscribed', req.body, req);
-        if (cc) await db.query("UPDATE contacts SET status='unsubscribed', updated_at=NOW() WHERE id=$1", [cc.contact_id]);
+        if (cc) await db.query("UPDATE contacts SET status='unsubscribed', updated_at=NOW() WHERE id=?", [cc.contact_id]);
       }
 
       res.json({ ok: true });

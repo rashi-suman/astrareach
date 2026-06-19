@@ -13,37 +13,37 @@ new Worker('whatsapp-events', async (job) => {
   if (!waccId || !eventType) return;
 
   // 1. Upgrade status (never downgrade)
-  const { rows: [cur] } = await db.query('SELECT status FROM wa_campaign_contacts WHERE id=$1', [waccId]);
+  const { rows: [cur] } = await db.query('SELECT status FROM wa_campaign_contacts WHERE id=?', [waccId]);
   if (cur && (STATUS_RANK[eventType] ?? 0) > (STATUS_RANK[cur.status] ?? 0)) {
     const colMap = {
       delivered: 'delivered_at', read: 'read_at', replied: 'replied_at',
       failed: 'failed_at', opted_out: null,
     };
     const col = colMap[eventType];
-    const setCols = col ? `status=$1, ${col}=NOW()` : 'status=$1';
+    const setCols = col ? `status=?, ${col}=NOW()` : 'status=?';
     const failClause = (eventType === 'failed' && failureCode)
       ? `, failure_code='${failureCode}'` : '';
     await db.query(
-      `UPDATE wa_campaign_contacts SET ${setCols}${failClause} WHERE id=$2`,
+      `UPDATE wa_campaign_contacts SET ${setCols}${failClause} WHERE id=?`,
       [eventType, waccId],
     );
   }
 
   // 2. On opted_out — mark contact
   if (eventType === 'opted_out' && contactId) {
-    await db.query(`UPDATE contacts SET whatsapp_opted_in=false WHERE id=$1`, [contactId]);
+    await db.query(`UPDATE contacts SET whatsapp_opted_in=false WHERE id=?`, [contactId]);
     await db.query(
       `INSERT INTO wa_opt_ins (org_id,contact_id,phone_number,status,opted_out_at,opted_out_reason)
-       VALUES ((SELECT org_id FROM contacts WHERE id=$1),$1,$2,'opted_out',NOW(),'user_reply')
-       ON CONFLICT (org_id,phone_number) DO UPDATE SET status='opted_out',opted_out_at=NOW()`,
-      [contactId, phoneNumber],
+       VALUES ((SELECT org_id FROM contacts WHERE id=?),?,?,'opted_out',NOW(),'user_reply')
+       ON DUPLICATE KEY UPDATE status='opted_out',opted_out_at=NOW()`,
+      [contactId, contactId, phoneNumber],
     );
   }
 
   // 3. Write wa_events analytics row
   await db.query(
     `INSERT INTO wa_events (org_id,campaign_id,wacc_id,contact_id,phone_number,event_type,failure_code,button_payload,metadata,created_at)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,NOW())`,
+     VALUES (?,?,?,?,?,?,?,?,?,NOW())`,
     [orgId, campaignId, waccId, contactId, phoneNumber, eventType,
      failureCode || null, buttonPayload || null, JSON.stringify(metadata)],
   );
@@ -51,14 +51,14 @@ new Worker('whatsapp-events', async (job) => {
   // 4. Auto-complete campaign check
   if (['delivered','read','replied','failed','opted_out','invalid_number'].includes(eventType) && campaignId) {
     const { rows: [r] } = await db.query(
-      `SELECT COUNT(*)::int AS pending FROM wa_campaign_contacts
-       WHERE campaign_id=$1 AND status NOT IN ('sent','delivered','read','replied','failed','opted_out','invalid_number')`,
+      `SELECT COUNT(*) AS pending FROM wa_campaign_contacts
+       WHERE campaign_id=? AND status NOT IN ('sent','delivered','read','replied','failed','opted_out','invalid_number')`,
       [campaignId],
     );
     if (r.pending === 0) {
       await db.query(
         `UPDATE wa_campaigns SET status='completed', completed_at=COALESCE(completed_at,NOW())
-         WHERE id=$1 AND status IN ('active','paused')`,
+         WHERE id=? AND status IN ('active','paused')`,
         [campaignId],
       );
     }

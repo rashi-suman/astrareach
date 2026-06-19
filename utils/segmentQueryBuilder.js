@@ -9,7 +9,7 @@ const ALLOWED_FIELDS = new Set([
 
 function pushParam(params, value) {
   params.push(value);
-  return `$${params.length}`;
+  return `?`;
 }
 
 function toTagArray(value) {
@@ -27,37 +27,40 @@ function parseCondition(condition, params) {
     const arr = toTagArray(value);
     if (op === 'contains_any' || op === 'contains') {
       if (!arr.length) return '1=1';
-      const p = pushParam(params, arr);
-      return `tags && ${p}::text[]`;
+      // JSON array column: match if any tag in arr exists in tags
+      const clauses = arr.map(t => { params.push(t); return `JSON_CONTAINS(tags, JSON_QUOTE(?))`; });
+      return clauses.join(' OR ');
     }
     if (op === 'contains_all') {
       if (!arr.length) return '1=1';
-      const p = pushParam(params, arr);
-      return `tags @> ${p}::text[]`;
+      // JSON array column: all tags in arr must exist in tags
+      const clauses = arr.map(t => { params.push(t); return `JSON_CONTAINS(tags, JSON_QUOTE(?))`; });
+      return clauses.join(' AND ');
     }
     if (op === 'not_contains') {
       if (!arr.length) return '1=1';
-      const p = pushParam(params, arr);
-      return `NOT (tags && ${p}::text[])`;
+      // JSON array column: none of the tags in arr should exist in tags
+      const clauses = arr.map(t => { params.push(t); return `NOT JSON_CONTAINS(tags, JSON_QUOTE(?))`; });
+      return clauses.join(' AND ');
     }
-    if (op === 'is_empty') return `(tags IS NULL OR tags = '{}')`;
+    if (op === 'is_empty') return `(tags IS NULL OR JSON_LENGTH(tags) = 0)`;
     return '1=1';
   }
 
   // ── custom_fields ──────────────────────────────────────────────────────────
   if (field === 'custom_fields' && op === 'key_exists') {
-    const p = pushParam(params, String(value));
-    return `custom_fields ? ${p}`;
+    const p = pushParam(params, `$.${String(value)}`);
+    return `JSON_CONTAINS_PATH(custom_fields, 'one', ${p})`;
   }
 
   // ── created_at ─────────────────────────────────────────────────────────────
   if (field === 'created_at') {
-    if (op === 'after')  { const p = pushParam(params, value); return `created_at >= ${p}::timestamptz`; }
-    if (op === 'before') { const p = pushParam(params, value); return `created_at <= ${p}::timestamptz`; }
+    if (op === 'after')  { const p = pushParam(params, value); return `created_at >= ${p}`; }
+    if (op === 'before') { const p = pushParam(params, value); return `created_at <= ${p}`; }
     if (op === 'between' && Array.isArray(value) && value.length === 2) {
       const p1 = pushParam(params, value[0]);
       const p2 = pushParam(params, value[1]);
-      return `created_at BETWEEN ${p1}::timestamptz AND ${p2}::timestamptz`;
+      return `created_at BETWEEN ${p1} AND ${p2}`;
     }
   }
 
@@ -84,19 +87,19 @@ function parseCondition(condition, params) {
       const p = pushParam(params, value); return `((${eff} != ${p}) OR (${eff} IS NULL))`;
     }
     if (op === 'contains') {
-      const p = pushParam(params, `%${value}%`); return `(whatsapp_phone ILIKE ${p} OR phone ILIKE ${p})`;
+      const p = pushParam(params, `%${value}%`); return `(whatsapp_phone LIKE ${p} OR phone LIKE ${p})`;
     }
     if (op === 'not_contains') {
       const p = pushParam(params, `%${value}%`);
-      return `((whatsapp_phone IS NULL OR whatsapp_phone NOT ILIKE ${p}) AND (phone IS NULL OR phone NOT ILIKE ${p}))`;
+      return `((whatsapp_phone IS NULL OR whatsapp_phone NOT LIKE ${p}) AND (phone IS NULL OR phone NOT LIKE ${p}))`;
     }
     if (op === 'starts_with') {
-      const p = pushParam(params, `${value}%`); return `(whatsapp_phone ILIKE ${p} OR phone ILIKE ${p})`;
+      const p = pushParam(params, `${value}%`); return `(whatsapp_phone LIKE ${p} OR phone LIKE ${p})`;
     }
     if (op === 'in' || op === 'is_one_of') {
       const arr = Array.isArray(value) ? value : String(value).split(',').map(s => s.trim()).filter(Boolean);
       if (!arr.length) return '1=1';
-      const p = pushParam(params, arr); return `(${eff} = ANY(${p}::text[]))`;
+      const p = pushParam(params, arr); return `(${eff} IN (${p}))`;
     }
     return '1=1';
   }
@@ -109,18 +112,18 @@ function parseCondition(condition, params) {
     const p = pushParam(params, value); return `(${field} != ${p} OR ${field} IS NULL)`;
   }
   if (op === 'contains') {
-    const p = pushParam(params, `%${value}%`); return `${field} ILIKE ${p}`;
+    const p = pushParam(params, `%${value}%`); return `${field} LIKE ${p}`;
   }
   if (op === 'not_contains') {
-    const p = pushParam(params, `%${value}%`); return `(${field} NOT ILIKE ${p} OR ${field} IS NULL)`;
+    const p = pushParam(params, `%${value}%`); return `(${field} NOT LIKE ${p} OR ${field} IS NULL)`;
   }
   if (op === 'starts_with') {
-    const p = pushParam(params, `${value}%`); return `${field} ILIKE ${p}`;
+    const p = pushParam(params, `${value}%`); return `${field} LIKE ${p}`;
   }
   if (op === 'in' || op === 'is_one_of') {
     const arr = Array.isArray(value) ? value : String(value).split(',').map(s=>s.trim()).filter(Boolean);
     if (!arr.length) return '1=1';
-    const p = pushParam(params, arr); return `${field} = ANY(${p}::text[])`;
+    const p = pushParam(params, arr); return `${field} IN (${p})`;
   }
   if (op === 'is_empty')  return `(${field} IS NULL OR ${field} = '')`;
   if (op === 'is_filled') return `(${field} IS NOT NULL AND ${field} != '')`;
@@ -141,15 +144,10 @@ function buildFilterWhere(filters, _startIdx) {
 
   const clauses = rules.map(rule => {
     if (rule && Array.isArray(rule.rules)) {
-      // Flatten nested group: pass a fresh params reference so indices match
-      const nestedParams = [...params]; // snapshot current length
-      const savedLen = params.length;
+      // Recursively build nested group; params are accumulated by reference via spread
       const nestedResult = buildFilterWhere(rule);
-      // Re-offset the nested where clause so param indices start from savedLen+1
-      const offset = savedLen;
-      const reindexed = nestedResult.where.replace(/\$(\d+)/g, (_, n) => `$${parseInt(n, 10) + offset}`);
       params.push(...nestedResult.params);
-      return `(${reindexed})`;
+      return `(${nestedResult.where})`;
     }
     return `(${parseCondition(rule, params)})`;
   });
@@ -158,13 +156,13 @@ function buildFilterWhere(filters, _startIdx) {
 }
 
 /**
- * Renumber placeholders in a WHERE fragment: $1 → $(1+offset), $2 → $(2+offset), …
- * Use when AND-ing this fragment after conditions that already consume $1…$offset
- * (e.g. `org_id=$1 AND (` + offsetSqlParams(where, 1) + `)` with params [orgId, ...params]).
+ * No-op in MySQL: placeholders are positional `?` and do not carry numeric
+ * indices, so there is nothing to offset. Kept for API compatibility with any
+ * callers that still reference this helper; it simply returns the where string
+ * unchanged.
  */
 function offsetSqlParams(where, offset) {
-  if (!offset) return where;
-  return String(where).replace(/\$(\d+)/g, (_, n) => `$${parseInt(n, 10) + offset}`);
+  return String(where);
 }
 
 module.exports = { buildFilterWhere, offsetSqlParams };

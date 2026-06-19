@@ -12,23 +12,30 @@ module.exports = {
       const oid = orgId(req);
 
       const daily = (await db.query(`
-        SELECT to_char(d::date, 'YYYY-MM-DD') AS day,
-               COUNT(*) FILTER (WHERE e.event_type='delivered')::int AS delivered,
-               COUNT(*) FILTER (WHERE e.event_type='opened')::int AS opened,
-               COUNT(*) FILTER (WHERE e.event_type='clicked')::int AS clicked,
-               COUNT(*) FILTER (WHERE e.event_type='booked')::int AS booked
-        FROM generate_series(now() - interval '29 days', now(), interval '1 day') d
-        LEFT JOIN email_events e ON date(e.created_at)=date(d)
-        GROUP BY d
-        ORDER BY d
+        WITH RECURSIVE date_series AS (
+          SELECT DATE(NOW() - INTERVAL 29 DAY) AS d
+          UNION ALL
+          SELECT DATE(d + INTERVAL 1 DAY)
+          FROM date_series
+          WHERE d < DATE(NOW())
+        )
+        SELECT DATE_FORMAT(ds.d, '%Y-%m-%d') AS day,
+               SUM(CASE WHEN e.event_type='delivered' THEN 1 ELSE 0 END) AS delivered,
+               SUM(CASE WHEN e.event_type='opened' THEN 1 ELSE 0 END) AS opened,
+               SUM(CASE WHEN e.event_type='clicked' THEN 1 ELSE 0 END) AS clicked,
+               SUM(CASE WHEN e.event_type='booked' THEN 1 ELSE 0 END) AS booked
+        FROM date_series ds
+        LEFT JOIN email_events e ON DATE(e.created_at) = ds.d
+        GROUP BY ds.d
+        ORDER BY ds.d
       `)).rows;
 
       const topCampaigns = (await db.query(`
         SELECT c.id, c.name,
-          COUNT(cc.*)::int AS total,
-          COUNT(cc.*) FILTER (WHERE cc.status IN ('opened','clicked','booked'))::int AS opened,
-          COUNT(cc.*) FILTER (WHERE cc.status IN ('clicked','booked'))::int AS clicked,
-          COUNT(cc.*) FILTER (WHERE cc.status='booked')::int AS booked
+          COUNT(cc.id) AS total,
+          SUM(CASE WHEN cc.status IN ('opened','clicked','booked') THEN 1 ELSE 0 END) AS opened,
+          SUM(CASE WHEN cc.status IN ('clicked','booked') THEN 1 ELSE 0 END) AS clicked,
+          SUM(CASE WHEN cc.status='booked' THEN 1 ELSE 0 END) AS booked
         FROM campaigns c
         LEFT JOIN campaign_contacts cc ON cc.campaign_id=c.id
         GROUP BY c.id
@@ -38,8 +45,8 @@ module.exports = {
 
       const topTemplates = (await db.query(`
         SELECT t.id, t.name,
-          COUNT(cc.*)::int AS total,
-          COUNT(cc.*) FILTER (WHERE cc.status IN ('opened','clicked','booked'))::int AS opened
+          COUNT(cc.id) AS total,
+          SUM(CASE WHEN cc.status IN ('opened','clicked','booked') THEN 1 ELSE 0 END) AS opened
         FROM templates t
         LEFT JOIN campaigns c ON c.template_id=t.id
         LEFT JOIN campaign_contacts cc ON cc.campaign_id=c.id
@@ -50,32 +57,39 @@ module.exports = {
 
       const [waDailyRes, waOverviewRes, waTopRes] = await Promise.all([
         db.query(`
-          SELECT to_char(d::date, 'YYYY-MM-DD') AS day,
-                 COUNT(*) FILTER (WHERE e.event_type='sent')::int AS sent,
-                 COUNT(*) FILTER (WHERE e.event_type='delivered')::int AS delivered,
-                 COUNT(*) FILTER (WHERE e.event_type='read')::int AS read,
-                 COUNT(*) FILTER (WHERE e.event_type='replied')::int AS replied
-          FROM generate_series(now() - interval '29 days', now(), interval '1 day') d
-          LEFT JOIN wa_events e ON date(e.created_at)=date(d) AND e.org_id=$1::uuid
-          GROUP BY d
-          ORDER BY d
+          WITH RECURSIVE date_series AS (
+            SELECT DATE(NOW() - INTERVAL 29 DAY) AS d
+            UNION ALL
+            SELECT DATE(d + INTERVAL 1 DAY)
+            FROM date_series
+            WHERE d < DATE(NOW())
+          )
+          SELECT DATE_FORMAT(ds.d, '%Y-%m-%d') AS day,
+                 SUM(CASE WHEN e.event_type='sent' THEN 1 ELSE 0 END) AS sent,
+                 SUM(CASE WHEN e.event_type='delivered' THEN 1 ELSE 0 END) AS delivered,
+                 SUM(CASE WHEN e.event_type='read' THEN 1 ELSE 0 END) AS \`read\`,
+                 SUM(CASE WHEN e.event_type='replied' THEN 1 ELSE 0 END) AS replied
+          FROM date_series ds
+          LEFT JOIN wa_events e ON DATE(e.created_at) = ds.d AND e.org_id = ?
+          GROUP BY ds.d
+          ORDER BY ds.d
         `, [oid]),
         db.query(`
-          SELECT event_type, COUNT(*)::int AS cnt
+          SELECT event_type, COUNT(*) AS cnt
           FROM wa_events
-          WHERE org_id=$1::uuid AND created_at >= now() - interval '30 days'
+          WHERE org_id = ? AND created_at >= NOW() - INTERVAL 30 DAY
           GROUP BY event_type
         `, [oid]),
         db.query(`
           SELECT c.id, c.name, c.status, c.messages_sent,
-                 COUNT(we.id) FILTER (WHERE we.event_type='delivered')::int AS delivered,
-                 COUNT(we.id) FILTER (WHERE we.event_type='read')::int AS read_count,
-                 COUNT(we.id) FILTER (WHERE we.event_type='replied')::int AS replied
+                 SUM(CASE WHEN we.event_type='delivered' THEN 1 ELSE 0 END) AS delivered,
+                 SUM(CASE WHEN we.event_type='read' THEN 1 ELSE 0 END) AS read_count,
+                 SUM(CASE WHEN we.event_type='replied' THEN 1 ELSE 0 END) AS replied
           FROM wa_campaigns c
-          LEFT JOIN wa_events we ON we.campaign_id=c.id AND we.created_at >= now() - interval '30 days'
-          WHERE c.org_id=$1::uuid
+          LEFT JOIN wa_events we ON we.campaign_id=c.id AND we.created_at >= NOW() - INTERVAL 30 DAY
+          WHERE c.org_id = ?
           GROUP BY c.id
-          ORDER BY c.messages_sent DESC NULLS LAST, c.created_at DESC
+          ORDER BY c.messages_sent IS NULL ASC, c.messages_sent DESC, c.created_at DESC
           LIMIT 8
         `, [oid]),
       ]);
@@ -94,7 +108,7 @@ module.exports = {
           booked: daily.map((d) => d.booked || 0),
           deliveryPie: {
             delivered: daily.reduce((a, b) => a + Number(b.delivered || 0), 0),
-            bounced: (await db.query("SELECT COUNT(*)::int AS count FROM email_events WHERE event_type='bounced' AND created_at >= now() - interval '30 days'")).rows[0].count,
+            bounced: (await db.query("SELECT COUNT(*) AS count FROM email_events WHERE event_type='bounced' AND created_at >= NOW() - INTERVAL 30 DAY")).rows[0].count,
           },
         },
         waChart: {

@@ -22,16 +22,23 @@ router.get('/search', requirePermission('contacts.view'), async (req, res) => {
     if (!q) return res.json([]);
     const like = `%${q}%`;
     const tags = q.split(',').map(t => t.trim()).filter(Boolean);
-    const rows = (await require('../config/db').query(
-      `SELECT id, first_name, last_name, email, company, job_title, tags, status
+    // Build a JSON_CONTAINS check for each tag, OR-ed together
+    let tagConditions = '';
+    const tagParams = [];
+    if (tags.length > 0) {
+      tagConditions = tags.map(() => 'JSON_CONTAINS(tags, JSON_QUOTE(?))').join(' OR ');
+      tags.forEach(t => tagParams.push(t));
+    }
+    const baseParams = [like, like, like, like];
+    let sql = `SELECT id, first_name, last_name, email, company, job_title, tags, status
        FROM contacts
        WHERE status != 'invalid'
-         AND (email ILIKE $1 OR first_name ILIKE $1 OR last_name ILIKE $1 OR company ILIKE $1
-              OR (tags && $2::text[]))
-       ORDER BY first_name, last_name
-       LIMIT 30`,
-      [like, tags]
-    )).rows;
+         AND (email LIKE ? OR first_name LIKE ? OR last_name LIKE ? OR company LIKE ?`;
+    if (tagConditions) {
+      sql += `\n              OR (${tagConditions})`;
+    }
+    sql += `)\n       ORDER BY first_name, last_name\n       LIMIT 30`;
+    const rows = (await require('../config/db').query(sql, [...baseParams, ...tagParams])).rows;
     res.json(rows);
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
@@ -48,10 +55,10 @@ router.get('/import/:batchId/status',   requirePermission('import.create'), c.im
 router.delete('/import/:batchId', requirePermission('import.create'), async (req, res) => {
   const { batchId } = req.params;
   try {
-    const batch = await db.query('SELECT id, filename FROM import_batches WHERE id=$1', [batchId]);
+    const batch = await db.query('SELECT id, filename FROM import_batches WHERE id=?', [batchId]);
     if (!batch.rows.length) return res.status(404).json({ error: 'Batch not found' });
-    await db.query('DELETE FROM contacts WHERE import_batch_id=$1', [batchId]);
-    await db.query('DELETE FROM import_batches WHERE id=$1', [batchId]);
+    await db.query('DELETE FROM contacts WHERE import_batch_id=?', [batchId]);
+    await db.query('DELETE FROM import_batches WHERE id=?', [batchId]);
     res.json({ ok: true, message: `Import "${batch.rows[0].filename}" and all its contacts have been removed.` });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -76,8 +83,8 @@ router.post('/bulk/assign-campaign', requirePermission('campaigns.edit'), async 
   for (const cid of ids) {
     try {
       await db.query(
-        `INSERT INTO campaign_contacts (campaign_id, contact_id, org_id)
-         VALUES ($1,$2,$3) ON CONFLICT DO NOTHING`,
+        `INSERT IGNORE INTO campaign_contacts (campaign_id, contact_id, org_id)
+         VALUES (?,?,?)`,
         [campaignId, cid, req.org?.id || DEFAULT_ORG],
       );
       added++;
@@ -147,7 +154,7 @@ router.get('/:id/timeline', requirePermission('contacts.view'), async (req, res)
               cam.name AS campaign_name
        FROM email_events ee
        LEFT JOIN campaigns cam ON cam.id = ee.campaign_id
-       WHERE ee.contact_id=$1
+       WHERE ee.contact_id=?
        ORDER BY ee.created_at DESC LIMIT 100`,
       [req.params.id],
     );

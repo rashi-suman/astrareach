@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { v4: uuidv4 } = require('uuid');
 const { getPagination } = require('../middleware/paginate');
 const { sendQueue } = require('../services/queueService');
 const { buildFilterWhere, offsetSqlParams } = require('../utils/segmentQueryBuilder');
@@ -9,14 +10,14 @@ const DEFAULT_ORG = '00000000-0000-0000-0000-000000000001';
 async function getCampaignStats(campaignId) {
   return (await db.query(`
     SELECT
-      COUNT(*)::int AS total,
-      COUNT(*) FILTER (WHERE status IN ('sent','delivered','opened','clicked','booked','bounced'))::int AS sent,
-      COUNT(*) FILTER (WHERE status IN ('delivered','opened','clicked','booked'))::int AS delivered,
-      COUNT(*) FILTER (WHERE status IN ('opened','clicked','booked'))::int AS opened,
-      COUNT(*) FILTER (WHERE status IN ('clicked','booked'))::int AS clicked,
-      COUNT(*) FILTER (WHERE status='booked')::int AS booked,
-      COUNT(*) FILTER (WHERE status='bounced')::int AS bounced
-    FROM campaign_contacts WHERE campaign_id=$1
+      COUNT(*) AS total,
+      COUNT(CASE WHEN status IN ('sent','delivered','opened','clicked','booked','bounced') THEN 1 END) AS sent,
+      COUNT(CASE WHEN status IN ('delivered','opened','clicked','booked') THEN 1 END) AS delivered,
+      COUNT(CASE WHEN status IN ('opened','clicked','booked') THEN 1 END) AS opened,
+      COUNT(CASE WHEN status IN ('clicked','booked') THEN 1 END) AS clicked,
+      COUNT(CASE WHEN status='booked' THEN 1 END) AS booked,
+      COUNT(CASE WHEN status='bounced' THEN 1 END) AS bounced
+    FROM campaign_contacts WHERE campaign_id=?
   `, [campaignId])).rows[0];
 }
 
@@ -35,9 +36,9 @@ async function enqueuePending(campaign, limit) {
     JOIN contacts c ON c.id = cc.contact_id
     JOIN campaigns cam ON cam.id = cc.campaign_id
     LEFT JOIN templates t ON t.id = cam.template_id
-    WHERE cc.campaign_id = $1 AND cc.status = 'pending'
+    WHERE cc.campaign_id = ? AND cc.status = 'pending'
     ORDER BY cc.created_at ASC
-    LIMIT $2
+    LIMIT ?
   `, [campaign.id, limit])).rows;
 
   for (const p of pending) {
@@ -51,7 +52,7 @@ async function enqueuePending(campaign, limit) {
       email:     { subject: personalizedSubject, body_html: personalizedBody },
       campaignId: campaign.id,
     });
-    await db.query("UPDATE campaign_contacts SET status='queued' WHERE id=$1", [p.campaign_contact_id]);
+    await db.query("UPDATE campaign_contacts SET status='queued' WHERE id=?", [p.campaign_contact_id]);
   }
 }
 
@@ -63,19 +64,20 @@ module.exports = {
       const where = ['1=1'];
       if (req.query.search) {
         params.push(`%${req.query.search}%`);
-        where.push(`(name ILIKE $${params.length} OR description ILIKE $${params.length})`);
+        params.push(`%${req.query.search}%`);
+        where.push(`(name LIKE ? OR description LIKE ?)`);
       }
       if (req.query.status) {
         params.push(req.query.status);
-        where.push(`status = $${params.length}`);
+        where.push(`status = ?`);
       }
       const wClause = where.join(' AND ');
       const rows = (await db.query(
-        `SELECT * FROM campaigns WHERE ${wClause} ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+        `SELECT * FROM campaigns WHERE ${wClause} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
         [...params, limit, offset]
       )).rows;
-      const total = (await db.query(`SELECT COUNT(*)::int AS count FROM campaigns WHERE ${wClause}`, params)).rows[0].count;
-      const summary = (await db.query(`SELECT status, COUNT(*)::int AS count FROM campaigns GROUP BY status`)).rows;
+      const total = (await db.query(`SELECT COUNT(*) AS count FROM campaigns WHERE ${wClause}`, params)).rows[0].count;
+      const summary = (await db.query(`SELECT status, COUNT(*) AS count FROM campaigns GROUP BY status`)).rows;
       // Support JSON response for campaign picker modal
       if (req.query.format === 'json' || (req.headers.accept && req.headers.accept.includes('application/json') && !req.headers['x-requested-with']?.includes('html'))) {
         return res.json({ campaigns: rows });
@@ -156,10 +158,12 @@ module.exports = {
         status = 'draft';
       }
 
-      const campaign = (await db.query(
-        `INSERT INTO campaigns(name, description, template_id, segment_id, daily_limit, send_time, timezone, status, created_by, scheduled_start_at, org_id)
-         VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+      const newCampaignId = uuidv4();
+      await db.query(
+        `INSERT INTO campaigns(id, name, description, template_id, segment_id, daily_limit, send_time, timezone, status, created_by, scheduled_start_at, org_id)
+         VALUES(?,?,?,?,?,?,?,?,?,?,?,?)`,
         [
+          newCampaignId,
           d.name,
           d.description || null,
           d.template_id || null,
@@ -172,14 +176,15 @@ module.exports = {
           scheduledStartAt,
           org,
         ],
-      )).rows[0];
+      );
+      const campaign = (await db.query('SELECT * FROM campaigns WHERE id=?', [newCampaignId])).rows[0];
 
       let contactIds = d.contact_ids || [];
       if (!contactIds.length && d.segment_id) {
-        const seg = (await db.query('SELECT filters, org_id FROM segments WHERE id=$1', [d.segment_id])).rows[0];
+        const seg = (await db.query('SELECT filters, org_id FROM segments WHERE id=?', [d.segment_id])).rows[0];
         if (seg) {
           const built = buildFilterWhere(seg.filters);
-          const whereSql = seg.org_id ? `org_id=$1 AND (${offsetSqlParams(built.where, 1)})` : `(${built.where})`;
+          const whereSql = seg.org_id ? `org_id=? AND (${offsetSqlParams(built.where, 1)})` : `(${built.where})`;
           const qParams = seg.org_id ? [seg.org_id, ...built.params] : built.params;
           contactIds = (await db.query(`SELECT id FROM contacts WHERE ${whereSql}`, qParams)).rows.map((r) => r.id);
         }
@@ -187,12 +192,12 @@ module.exports = {
 
       for (const cid of contactIds) {
         await db.query(
-          'INSERT INTO campaign_contacts(campaign_id, contact_id, status, org_id) VALUES($1,$2,$3,$4) ON CONFLICT (campaign_id, contact_id) DO NOTHING',
+          'INSERT IGNORE INTO campaign_contacts(campaign_id, contact_id, status, org_id) VALUES(?,?,?,?)',
           [campaign.id, cid, 'pending', org],
         );
       }
 
-      await db.query('UPDATE campaigns SET total_contacts=(SELECT COUNT(*) FROM campaign_contacts WHERE campaign_id=$1) WHERE id=$1', [campaign.id]);
+      await db.query('UPDATE campaigns SET total_contacts=(SELECT COUNT(*) FROM campaign_contacts WHERE campaign_id=?) WHERE id=?', [campaign.id, campaign.id]);
 
       if (shouldEnqueue) {
         await enqueuePending(campaign, campaign.daily_limit);
@@ -222,16 +227,16 @@ module.exports = {
   detail: async (req, res) => {
     try {
       const { page, limit, offset } = getPagination(req, 50);
-      const campaign = (await db.query('SELECT * FROM campaigns WHERE id=$1', [req.params.id])).rows[0];
+      const campaign = (await db.query('SELECT * FROM campaigns WHERE id=?', [req.params.id])).rows[0];
       if (!campaign) return res.status(404).send('Campaign not found');
 
-      const contacts = (await db.query('SELECT cc.*, c.first_name, c.last_name, c.email, c.company FROM campaign_contacts cc JOIN contacts c ON c.id=cc.contact_id WHERE cc.campaign_id=$1 ORDER BY cc.created_at DESC LIMIT $2 OFFSET $3', [req.params.id, limit, offset])).rows;
-      const events = (await db.query('SELECT e.*, c.first_name, c.last_name FROM email_events e LEFT JOIN contacts c ON c.id=e.contact_id WHERE e.campaign_id=$1 ORDER BY e.created_at DESC LIMIT 20', [req.params.id])).rows;
+      const contacts = (await db.query('SELECT cc.*, c.first_name, c.last_name, c.email, c.company FROM campaign_contacts cc JOIN contacts c ON c.id=cc.contact_id WHERE cc.campaign_id=? ORDER BY cc.created_at DESC LIMIT ? OFFSET ?', [req.params.id, limit, offset])).rows;
+      const events = (await db.query('SELECT e.*, c.first_name, c.last_name FROM email_events e LEFT JOIN contacts c ON c.id=e.contact_id WHERE e.campaign_id=? ORDER BY e.created_at DESC LIMIT 20', [req.params.id])).rows;
       const stats = await getCampaignStats(req.params.id);
 
       // Fetch linked template (if any)
       const template = campaign.template_id
-        ? (await db.query('SELECT id, name, subject, body_html, booking_url, include_unsubscribe FROM templates WHERE id=$1', [campaign.template_id])).rows[0] || null
+        ? (await db.query('SELECT id, name, subject, body_html, booking_url, include_unsubscribe FROM templates WHERE id=?', [campaign.template_id])).rows[0] || null
         : null;
 
       res.render('campaigns/detail', {
@@ -255,7 +260,7 @@ module.exports = {
         SELECT cc.*, c.first_name, c.last_name, c.email, c.company
         FROM campaign_contacts cc
         JOIN contacts c ON c.id = cc.contact_id
-        WHERE cc.campaign_id=$1 AND cc.id=$2
+        WHERE cc.campaign_id=? AND cc.id=?
       `, [req.params.id, req.params.campaignContactId])).rows[0];
       if (!row) return res.status(404).send('Contact email not found');
       res.send(`
@@ -280,12 +285,12 @@ module.exports = {
     try {
       const rows = (await db.query(`
         SELECT
-          date_trunc('hour', created_at) AS hour,
+          DATE_FORMAT(created_at, '%Y-%m-%d %H:00:00') AS hour,
           event_type,
-          COUNT(*)::int AS cnt
+          COUNT(*) AS cnt
         FROM email_events
-        WHERE campaign_id=$1
-          AND created_at >= NOW() - INTERVAL '48 hours'
+        WHERE campaign_id=?
+          AND created_at >= NOW() - INTERVAL 48 HOUR
         GROUP BY 1, 2
         ORDER BY 1
       `, [req.params.id])).rows;
@@ -311,10 +316,11 @@ module.exports = {
 
   start: async (req, res) => {
     try {
-      const campaign = (await db.query(
-        "UPDATE campaigns SET status='active', started_at=COALESCE(started_at, NOW()), scheduled_start_at=NULL WHERE id=$1 AND status IN ('draft','scheduled') RETURNING *",
+      await db.query(
+        "UPDATE campaigns SET status='active', started_at=COALESCE(started_at, NOW()), scheduled_start_at=NULL WHERE id=? AND status IN ('draft','scheduled')",
         [req.params.id],
-      )).rows[0];
+      );
+      const campaign = (await db.query('SELECT * FROM campaigns WHERE id=?', [req.params.id])).rows[0];
       if (campaign) await enqueuePending(campaign, campaign.daily_limit);
       req.flash('success', 'Campaign started — emails are being queued');
       res.redirect(`/campaigns/${req.params.id}`);
@@ -326,7 +332,7 @@ module.exports = {
 
   pause: async (req, res) => {
     try {
-      await db.query("UPDATE campaigns SET status='paused' WHERE id=$1", [req.params.id]);
+      await db.query("UPDATE campaigns SET status='paused' WHERE id=?", [req.params.id]);
       req.flash('info', 'Campaign paused');
       res.redirect(`/campaigns/${req.params.id}`);
     } catch (e) {
@@ -337,7 +343,8 @@ module.exports = {
 
   resume: async (req, res) => {
     try {
-      const campaign = (await db.query("UPDATE campaigns SET status='active' WHERE id=$1 RETURNING *", [req.params.id])).rows[0];
+      await db.query("UPDATE campaigns SET status='active' WHERE id=?", [req.params.id]);
+      const campaign = (await db.query('SELECT * FROM campaigns WHERE id=?', [req.params.id])).rows[0];
       if (campaign) await enqueuePending(campaign, Math.max(1, campaign.daily_limit - (campaign.emails_sent_today || 0)));
       req.flash('success', 'Campaign resumed');
       res.redirect(`/campaigns/${req.params.id}`);
@@ -349,8 +356,8 @@ module.exports = {
 
   stop: async (req, res) => {
     try {
-      await db.query("UPDATE campaigns SET status='stopped' WHERE id=$1", [req.params.id]);
-      await db.query("UPDATE campaign_contacts SET status='failed', error_message='Campaign stopped' WHERE campaign_id=$1 AND status IN ('pending','researching','ready','queued')", [req.params.id]);
+      await db.query("UPDATE campaigns SET status='stopped' WHERE id=?", [req.params.id]);
+      await db.query("UPDATE campaign_contacts SET status='failed', error_message='Campaign stopped' WHERE campaign_id=? AND status IN ('pending','researching','ready','queued')", [req.params.id]);
       req.flash('warning', 'Campaign stopped — pending emails have been cancelled');
       res.redirect(`/campaigns/${req.params.id}`);
     } catch (e) {
@@ -361,10 +368,10 @@ module.exports = {
 
   remove: async (req, res) => {
     try {
-      const c = (await db.query('SELECT status, name FROM campaigns WHERE id=$1', [req.params.id])).rows[0];
+      const c = (await db.query('SELECT status, name FROM campaigns WHERE id=?', [req.params.id])).rows[0];
       if (!c) { req.flash('error', 'Campaign not found'); return res.redirect('/campaigns'); }
       if (!['draft', 'completed', 'scheduled'].includes(c.status)) { req.flash('error', 'Only draft, scheduled, or completed campaigns can be deleted'); return res.redirect(`/campaigns/${req.params.id}`); }
-      await db.query('DELETE FROM campaigns WHERE id=$1', [req.params.id]);
+      await db.query('DELETE FROM campaigns WHERE id=?', [req.params.id]);
       req.flash('success', `Campaign "${c.name}" deleted`);
       res.redirect('/campaigns');
     } catch (e) {

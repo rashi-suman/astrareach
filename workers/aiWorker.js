@@ -13,9 +13,9 @@ new Worker('ai-jobs', async (job) => {
 
     case 'score': {
       const { contactId, orgId = DEFAULT_ORG } = job.data;
-      const contactRow = await db.query('SELECT * FROM contacts WHERE id=$1', [contactId]);
+      const contactRow = await db.query('SELECT * FROM contacts WHERE id=?', [contactId]);
       if (!contactRow.rows.length) return;
-      const orgRow = await db.query('SELECT * FROM organisations WHERE id=$1', [orgId]);
+      const orgRow = await db.query('SELECT * FROM organisations WHERE id=?', [orgId]);
       await aiService.scoreContact(contactRow.rows[0], orgRow.rows[0]);
       break;
     }
@@ -24,11 +24,11 @@ new Worker('ai-jobs', async (job) => {
       const { orgId = DEFAULT_ORG, limit = 100 } = job.data;
       const contacts = await db.query(
         `SELECT * FROM contacts
-         WHERE org_id=$1 AND status='active' AND ai_score IS NULL
-         LIMIT $2`,
+         WHERE org_id=? AND status='active' AND ai_score IS NULL
+         LIMIT ?`,
         [orgId, limit],
       );
-      const orgRow = await db.query('SELECT * FROM organisations WHERE id=$1', [orgId]);
+      const orgRow = await db.query('SELECT * FROM organisations WHERE id=?', [orgId]);
       for (const c of contacts.rows) {
         try {
           await aiService.scoreContact(c, orgRow.rows[0]);

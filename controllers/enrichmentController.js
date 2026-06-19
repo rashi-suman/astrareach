@@ -1,5 +1,6 @@
 'use strict';
 
+const { v4: uuidv4 } = require('uuid');
 const db = require('../config/db');
 const { connection: redis } = require('../config/redis');
 const { enrichmentQueue } = require('../workers/enrichmentWorker');
@@ -18,12 +19,12 @@ async function enrichSingle(req, res) {
     const orgId  = getOrgId(req);
     const force  = req.body?.force === true || req.body?.force === 'true';
 
-    const contact = (await db.query('SELECT id FROM contacts WHERE id=$1', [id])).rows[0];
+    const contact = (await db.query('SELECT id FROM contacts WHERE id=?', [id])).rows[0];
     if (!contact) return res.status(404).json({ error: 'Contact not found' });
 
     // Check existing enrichment
     const existing = (await db.query(
-      "SELECT enrichment_status FROM contact_enrichments WHERE contact_id=$1", [id]
+      "SELECT enrichment_status FROM contact_enrichments WHERE contact_id=?", [id]
     )).rows[0];
 
     if (existing?.enrichment_status === 'running') {
@@ -34,17 +35,19 @@ async function enrichSingle(req, res) {
     }
 
     // Create enrichment job row
-    const job = (await db.query(
-      `INSERT INTO enrichment_jobs (org_id, job_type, contact_ids, total, status, triggered_by)
-       VALUES ($1,'single',ARRAY[$2::uuid],1,'queued',$3) RETURNING id`,
-      [orgId, id, req.user?.id || null]
-    )).rows[0];
+    const newJobId = uuidv4();
+    await db.query(
+      `INSERT INTO enrichment_jobs (id, org_id, job_type, contact_ids, total, status, triggered_by)
+       VALUES (?,?,'single',JSON_ARRAY(?),1,'queued',?)`,
+      [newJobId, orgId, id, req.user?.id || null]
+    );
+    const job = { id: newJobId };
 
     // Upsert enrichment record as pending
     await db.query(`
       INSERT INTO contact_enrichments (contact_id, org_id, enrichment_status)
-      VALUES ($1,$2,'pending')
-      ON CONFLICT (contact_id) DO UPDATE SET enrichment_status='pending', updated_at=NOW()
+      VALUES (?,?,'pending')
+      ON DUPLICATE KEY UPDATE enrichment_status='pending', updated_at=NOW()
     `, [id, orgId]);
 
     // Seed Redis progress hash
@@ -53,7 +56,7 @@ async function enrichSingle(req, res) {
 
     // Queue the BullMQ job with high priority
     await enrichmentQueue.add('enrich', { contactId: id, orgId, enrichmentJobId: job.id }, { priority: 10 });
-    await db.query("UPDATE enrichment_jobs SET status='queued' WHERE id=$1", [job.id]);
+    await db.query("UPDATE enrichment_jobs SET status='queued' WHERE id=?", [job.id]);
 
     return res.json({ jobId: job.id, message: 'Enrichment started', status: 'queued' });
   } catch (e) {
@@ -75,7 +78,7 @@ async function enrichBulk(req, res) {
 
     // Validate ownership
     const owned = (await db.query(
-      'SELECT id FROM contacts WHERE id = ANY($1::uuid[]) AND org_id=$2',
+      'SELECT id FROM contacts WHERE id IN (?) AND org_id=?',
       [contact_ids, orgId]
     )).rows.map(r => r.id);
 
@@ -85,7 +88,7 @@ async function enrichBulk(req, res) {
     let targets = owned;
     if (!force) {
       const done = (await db.query(
-        "SELECT contact_id FROM contact_enrichments WHERE contact_id=ANY($1::uuid[]) AND enrichment_status='completed'",
+        "SELECT contact_id FROM contact_enrichments WHERE contact_id IN (?) AND enrichment_status='completed'",
         [owned]
       )).rows.map(r => r.contact_id);
       targets = owned.filter(id => !done.includes(id));
@@ -93,23 +96,25 @@ async function enrichBulk(req, res) {
     if (!targets.length) return res.json({ message: 'All selected contacts already enriched', total: 0 });
 
     // Create enrichment_jobs row
-    const job = (await db.query(
-      `INSERT INTO enrichment_jobs (org_id, job_type, contact_ids, total, status, triggered_by)
-       VALUES ($1,'bulk',$2::uuid[],$3,'queued',$4) RETURNING id`,
-      [orgId, targets, targets.length, req.user?.id || null]
-    )).rows[0];
+    const newJobId = uuidv4();
+    await db.query(
+      `INSERT INTO enrichment_jobs (id, org_id, job_type, contact_ids, total, status, triggered_by)
+       VALUES (?,?,'bulk',?,?,'queued',?)`,
+      [newJobId, orgId, JSON.stringify(targets), targets.length, req.user?.id || null]
+    );
+    const job = { id: newJobId };
 
     // Seed Redis
     await redis.hset(`enrichjob:${job.id}`, 'total', String(targets.length), 'completed', '0', 'failed', '0', 'status', 'queued');
     await redis.expire(`enrichjob:${job.id}`, 86400);
 
     // Upsert all enrichment rows as pending
-    const valueRows = targets.map((_, i) => `($${i * 2 + 1}, $${i * 2 + 2}, 'pending')`).join(',');
+    const valuePlaceholders = targets.map(() => `(?, ?, 'pending')`).join(',');
     const flatVals  = targets.flatMap(id => [id, orgId]);
     await db.query(`
       INSERT INTO contact_enrichments (contact_id, org_id, enrichment_status)
-      VALUES ${valueRows}
-      ON CONFLICT (contact_id) DO UPDATE SET enrichment_status='pending', updated_at=NOW()
+      VALUES ${valuePlaceholders}
+      ON DUPLICATE KEY UPDATE enrichment_status='pending', updated_at=NOW()
     `, flatVals);
 
     // Batch-add BullMQ jobs (chunks of 100)
@@ -122,7 +127,7 @@ async function enrichBulk(req, res) {
       ));
     }
 
-    await db.query("UPDATE enrichment_jobs SET status='queued' WHERE id=$1", [job.id]);
+    await db.query("UPDATE enrichment_jobs SET status='queued' WHERE id=?", [job.id]);
 
     return res.json({ jobId: job.id, total: targets.length, message: `Enrichment queued for ${targets.length} contacts` });
   } catch (e) {
@@ -151,7 +156,7 @@ async function jobProgress(req, res) {
       let hash = await redis.hgetall(`enrichjob:${jobId}`);
       if (!hash || !hash.total) {
         // Fallback to DB
-        const row = (await db.query('SELECT * FROM enrichment_jobs WHERE id=$1', [jobId])).rows[0];
+        const row = (await db.query('SELECT * FROM enrichment_jobs WHERE id=?', [jobId])).rows[0];
         if (row) {
           hash = { total: String(row.total), completed: String(row.completed), failed: String(row.failed), status: row.status };
         }
@@ -186,9 +191,9 @@ async function getEnrichment(req, res) {
   try {
     const { id } = req.params;
     const enrichment = (await db.query(
-      'SELECT * FROM contact_enrichments WHERE contact_id=$1', [id]
+      'SELECT * FROM contact_enrichments WHERE contact_id=?', [id]
     )).rows[0];
-    const contact = (await db.query('SELECT * FROM contacts WHERE id=$1', [id])).rows[0];
+    const contact = (await db.query('SELECT * FROM contacts WHERE id=?', [id])).rows[0];
 
     if (!contact) return res.status(404).json({ error: 'Contact not found' });
 
@@ -214,8 +219,8 @@ async function getEnrichment(req, res) {
 async function deleteEnrichment(req, res) {
   try {
     const { id } = req.params;
-    await db.query('DELETE FROM contact_enrichments WHERE contact_id=$1', [id]);
-    await db.query("UPDATE contacts SET research_done=false, enriched_at=NULL WHERE id=$1", [id]);
+    await db.query('DELETE FROM contact_enrichments WHERE contact_id=?', [id]);
+    await db.query("UPDATE contacts SET research_done=false, enriched_at=NULL WHERE id=?", [id]);
     req.flash('success', 'Enrichment data cleared');
     return res.redirect(`/contacts/${id}`);
   } catch (e) {
@@ -228,7 +233,7 @@ async function deleteEnrichment(req, res) {
 async function progressPage(req, res) {
   try {
     const { jobId } = req.params;
-    const job = (await db.query('SELECT * FROM enrichment_jobs WHERE id=$1', [jobId])).rows[0];
+    const job = (await db.query('SELECT * FROM enrichment_jobs WHERE id=?', [jobId])).rows[0];
     if (!job) return res.status(404).send('Job not found');
     res.render('enrichment/progress', {
       title: 'Enrichment Progress',
@@ -246,9 +251,30 @@ async function stats(req, res) {
   try {
     const orgId = getOrgId(req);
     const [totRow, statusRow, fieldRow] = await Promise.all([
-      db.query("SELECT COUNT(*)::int AS total, COUNT(*) FILTER (WHERE enrichment_status='completed')::int AS enriched, COUNT(*) FILTER (WHERE enrichment_status='running')::int AS running, COUNT(*) FILTER (WHERE enrichment_status='failed')::int AS failed, COUNT(*) FILTER (WHERE enrichment_status='pending')::int AS pending FROM contact_enrichments WHERE org_id=$1", [orgId]),
-      db.query("SELECT COUNT(*)::int AS total_contacts FROM contacts WHERE org_id=$1", [orgId]),
-      db.query("SELECT AVG(jsonb_object_agg(k, v->>'score')::text::numeric)::numeric(5,1) FROM contact_enrichments, jsonb_each(field_confidence) AS t(k,v) WHERE org_id=$1", [orgId]),
+      db.query(
+        `SELECT
+           COUNT(*) AS total,
+           SUM(enrichment_status='completed') AS enriched,
+           SUM(enrichment_status='running') AS running,
+           SUM(enrichment_status='failed') AS failed,
+           SUM(enrichment_status='pending') AS pending
+         FROM contact_enrichments WHERE org_id=?`,
+        [orgId]
+      ),
+      db.query("SELECT COUNT(*) AS total_contacts FROM contacts WHERE org_id=?", [orgId]),
+      db.query(
+        `SELECT ROUND(AVG(score_val), 1) AS avg_confidence
+         FROM (
+           SELECT CAST(JSON_UNQUOTE(JSON_EXTRACT(field_confidence, CONCAT('$.', jt.k, '.score'))) AS DECIMAL(10,4)) AS score_val
+           FROM contact_enrichments
+           JOIN JSON_TABLE(
+             JSON_KEYS(field_confidence),
+             '$[*]' COLUMNS (k VARCHAR(255) PATH '$')
+           ) AS jt
+           WHERE org_id=?
+         ) AS scores`,
+        [orgId]
+      ),
     ]);
     const totalContacts = statusRow.rows[0].total_contacts;
     const enriched      = totRow.rows[0].enriched;

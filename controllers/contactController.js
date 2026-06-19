@@ -2,6 +2,7 @@ const db = require('../config/db');
 const { connection } = require('../config/redis');
 const { getPagination } = require('../middleware/paginate');
 const { parseHeaders, detectColumnMapping, importContacts } = require('../services/importService');
+const { v4: uuidv4 } = require('uuid');
 
 // Parse a filter value that may be comma-separated (multi-select) into an array
 function parseMulti(val) {
@@ -19,27 +20,33 @@ function buildContactWhere(reqOrFilters) {
   const statuses = parseMulti(f.status);
   if (statuses.length) {
     params.push(statuses);
-    clauses.push(`status = ANY($${params.length}::text[])`);
+    clauses.push(`status IN (?)`);
   } else {
     clauses.push(`status != 'invalid'`);
   }
 
   if (f.search) {
     const p = `%${f.search}%`;
-    params.push(p);
-    clauses.push(`(email ILIKE $${params.length} OR company ILIKE $${params.length} OR first_name ILIKE $${params.length} OR last_name ILIKE $${params.length})`);
+    params.push(p, p, p, p);
+    clauses.push(`(email LIKE ? OR company LIKE ? OR first_name LIKE ? OR last_name LIKE ?)`);
   }
 
   const industries = parseMulti(f.industry);
-  if (industries.length) { params.push(industries); clauses.push(`industry = ANY($${params.length}::text[])`); }
+  if (industries.length) { params.push(industries); clauses.push(`industry IN (?)`); }
 
   const countries = parseMulti(f.country);
-  if (countries.length) { params.push(countries); clauses.push(`country = ANY($${params.length}::text[])`); }
+  if (countries.length) { params.push(countries); clauses.push(`country IN (?)`); }
 
-  if (f.tags) { params.push(typeof f.tags === 'string' ? f.tags.split(',') : f.tags); clauses.push(`tags && $${params.length}::text[]`); }
+  if (f.tags) {
+    const tagList = typeof f.tags === 'string' ? f.tags.split(',') : f.tags;
+    tagList.forEach(tag => {
+      params.push(tag);
+      clauses.push(`JSON_CONTAINS(tags, JSON_QUOTE(?))`);
+    });
+  }
 
   const sources = parseMulti(f.source);
-  if (sources.length) { params.push(sources); clauses.push(`source = ANY($${params.length}::text[])`); }
+  if (sources.length) { params.push(sources); clauses.push(`source IN (?)`); }
 
   return { where: clauses.join(' AND '), params };
 }
@@ -53,8 +60,8 @@ module.exports = {
       const sort = sortAllowed.includes(req.query.sort) ? req.query.sort : 'created_at';
       const order = (req.query.order || 'desc').toLowerCase() === 'asc' ? 'ASC' : 'DESC';
 
-      const rows = (await db.query(`SELECT * FROM contacts WHERE ${where} ORDER BY ${sort} ${order} LIMIT $${params.length + 1} OFFSET $${params.length + 2}`, [...params, limit, offset])).rows;
-      const total = (await db.query(`SELECT COUNT(*)::int AS count FROM contacts WHERE ${where}`, params)).rows[0].count;
+      const rows = (await db.query(`SELECT * FROM contacts WHERE ${where} ORDER BY ${sort} ${order} LIMIT ? OFFSET ?`, [...params, limit, offset])).rows;
+      const total = (await db.query(`SELECT COUNT(*) AS count FROM contacts WHERE ${where}`, params)).rows[0].count;
       const sources = (await db.query(`SELECT DISTINCT source FROM contacts WHERE source IS NOT NULL AND source <> '' ORDER BY source ASC LIMIT 200`)).rows.map((r) => r.source);
       const industries = (await db.query(`SELECT DISTINCT industry FROM contacts WHERE industry IS NOT NULL AND industry <> '' ORDER BY industry ASC LIMIT 200`)).rows.map((r) => r.industry);
       const countries = (await db.query(`SELECT DISTINCT country FROM contacts WHERE country IS NOT NULL AND country <> '' ORDER BY country ASC LIMIT 200`)).rows.map((r) => r.country);
@@ -77,13 +84,13 @@ module.exports = {
       if (!email) { req.flash('error', 'Email address is required'); return res.redirect('/contacts/new'); }
       const wa = (whatsapp_phone && String(whatsapp_phone).trim()) || null;
       await db.query(
-        'INSERT INTO contacts(email, first_name, last_name, company, job_title, phone, website, industry, city, country, linkedin_url, whatsapp_phone, source, status) VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)',
+        'INSERT INTO contacts(email, first_name, last_name, company, job_title, phone, website, industry, city, country, linkedin_url, whatsapp_phone, source, status) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
         [email, first_name, last_name, company, job_title, phone, website, industry, city, country, linkedin_url, wa, 'manual', 'active'],
       );
       req.flash('success', `Contact ${email} added successfully`);
       res.redirect('/contacts');
     } catch (e) {
-      req.flash('error', e.code === '23505' ? 'A contact with this email already exists' : e.message);
+      req.flash('error', e.code === 'ER_DUP_ENTRY' ? 'A contact with this email already exists' : e.message);
       res.redirect('/contacts/new');
     }
   },
@@ -189,7 +196,9 @@ module.exports = {
       const rawLabel = (req.body.importLabel || '').trim() || draft.filename || '';
       const importLabel = rawLabel.replace(/\.[^/.]+$/, '').trim() || rawLabel;
 
-      const batch = (await db.query('INSERT INTO import_batches(filename, status, uploaded_by, column_mapping) VALUES($1,$2,$3,$4::jsonb) RETURNING id', [importLabel, 'processing', req.user.id, JSON.stringify(finalMapping)])).rows[0];
+      const newBatchId = uuidv4();
+      await db.query('INSERT INTO import_batches(id, filename, status, uploaded_by, column_mapping) VALUES(?,?,?,?,?)', [newBatchId, importLabel, 'processing', req.user.id, JSON.stringify(finalMapping)]);
+      const batch = { id: newBatchId };
 
       const duplicateStrategy = (req.body.duplicateHandling || req.body.duplicate_strategy) === 'skip' ? 'skip' : 'update';
       await connection.set(`import:${batch.id}`, JSON.stringify({
@@ -207,7 +216,7 @@ module.exports = {
         duplicateStrategy,
         allowedCustomFields,   // pass user's checkbox selection to the import service
       }).catch(async (err) => {
-        await db.query('UPDATE import_batches SET status=$1, completed_at=NOW() WHERE id=$2', ['failed', batch.id]);
+        await db.query('UPDATE import_batches SET status=?, completed_at=NOW() WHERE id=?', ['failed', batch.id]);
         await connection.set(`import:${batch.id}`, JSON.stringify({ status: 'failed', error: err.message }), 'EX', 3600);
       });
 
@@ -233,7 +242,7 @@ module.exports = {
           res.write(`data: ${data}\n\n`);
           return;
         }
-        const b = (await db.query('SELECT total_rows, imported_rows, duplicate_rows, error_rows, status FROM import_batches WHERE id=$1', [req.params.batchId])).rows[0];
+        const b = (await db.query('SELECT total_rows, imported_rows, duplicate_rows, error_rows, status FROM import_batches WHERE id=?', [req.params.batchId])).rows[0];
         if (!b) {
           res.write(`data: ${JSON.stringify({ status: 'processing', imported: 0, total: 0, duplicates: 0, errors: 0 })}\n\n`);
           return;
@@ -257,7 +266,7 @@ module.exports = {
       const redis = await connection.get(`import:${req.params.batchId}`);
       if (redis) progress = JSON.parse(redis);
       if (!progress) {
-        const b = (await db.query('SELECT id, total_rows, imported_rows, duplicate_rows, error_rows, skipped_rows, status, error_log FROM import_batches WHERE id=$1', [req.params.batchId])).rows[0];
+        const b = (await db.query('SELECT id, total_rows, imported_rows, duplicate_rows, error_rows, skipped_rows, status, error_log FROM import_batches WHERE id=?', [req.params.batchId])).rows[0];
         if (!b) return res.status(404).json({ error: 'Batch not found' });
         progress = {
           status:                b.status         || 'processing',
@@ -273,7 +282,7 @@ module.exports = {
       const contacts = (await db.query(
         `SELECT id, first_name, last_name, email, company, created_at
          FROM contacts
-         WHERE import_batch_id=$1
+         WHERE import_batch_id=?
          ORDER BY created_at DESC
          LIMIT 100`,
         [req.params.batchId]
@@ -287,19 +296,19 @@ module.exports = {
 
   detail: async (req, res) => {
     try {
-      const contact = (await db.query('SELECT * FROM contacts WHERE id=$1', [req.params.id])).rows[0];
+      const contact = (await db.query('SELECT * FROM contacts WHERE id=?', [req.params.id])).rows[0];
       if (!contact) return res.status(404).send('Contact not found');
-      const history = (await db.query('SELECT cc.*, c.name AS campaign_name FROM campaign_contacts cc JOIN campaigns c ON c.id = cc.campaign_id WHERE cc.contact_id=$1 ORDER BY cc.created_at DESC', [req.params.id])).rows;
+      const history = (await db.query('SELECT cc.*, c.name AS campaign_name FROM campaign_contacts cc JOIN campaigns c ON c.id = cc.campaign_id WHERE cc.contact_id=? ORDER BY cc.created_at DESC', [req.params.id])).rows;
       const events = (await db.query(`
         SELECT ee.*, c.name AS campaign_name
         FROM email_events ee
         LEFT JOIN campaigns c ON c.id = ee.campaign_id
-        WHERE ee.contact_id=$1
+        WHERE ee.contact_id=?
         ORDER BY ee.created_at DESC LIMIT 50`, [req.params.id])).rows;
-      const similar = (await db.query('SELECT id, first_name, last_name, email, company FROM contacts WHERE company = $1 AND id <> $2 ORDER BY created_at DESC LIMIT 10', [contact.company || '', contact.id])).rows;
+      const similar = (await db.query('SELECT id, first_name, last_name, email, company FROM contacts WHERE company = ? AND id <> ? ORDER BY created_at DESC LIMIT 10', [contact.company || '', contact.id])).rows;
 
       // Enrichment data
-      const enrichmentRow = (await db.query('SELECT * FROM contact_enrichments WHERE contact_id=$1', [req.params.id])).rows[0] || null;
+      const enrichmentRow = (await db.query('SELECT * FROM contact_enrichments WHERE contact_id=?', [req.params.id])).rows[0] || null;
       const fieldMeta = {};
       if (enrichmentRow?.field_confidence) {
         for (const [field, conf] of Object.entries(enrichmentRow.field_confidence)) {
@@ -324,7 +333,7 @@ module.exports = {
 
   editPage: async (req, res) => {
     try {
-      const contact = (await db.query('SELECT * FROM contacts WHERE id=$1', [req.params.id])).rows[0];
+      const contact = (await db.query('SELECT * FROM contacts WHERE id=?', [req.params.id])).rows[0];
       if (!contact) return res.status(404).send('Contact not found');
       res.render('contacts/edit', { title: 'Edit Contact', page: 'contacts', breadcrumbs: ['Contacts', 'Edit'], contact });
     } catch (e) { res.status(500).send(e.message); }
@@ -335,7 +344,7 @@ module.exports = {
       const { email, first_name, last_name, company, job_title, phone, website, industry, city, country, linkedin_url, status, whatsapp_phone } = req.body;
       const wa = (whatsapp_phone && String(whatsapp_phone).trim()) || null;
       await db.query(
-        'UPDATE contacts SET email=$1, first_name=$2, last_name=$3, company=$4, job_title=$5, phone=$6, website=$7, industry=$8, city=$9, country=$10, linkedin_url=$11, status=$12, whatsapp_phone=$13, updated_at=NOW() WHERE id=$14',
+        'UPDATE contacts SET email=?, first_name=?, last_name=?, company=?, job_title=?, phone=?, website=?, industry=?, city=?, country=?, linkedin_url=?, status=?, whatsapp_phone=?, updated_at=NOW() WHERE id=?',
         [email, first_name, last_name, company, job_title, phone, website, industry, city, country, linkedin_url, status || 'active', wa, req.params.id],
       );
       req.flash('success', 'Contact updated successfully');
@@ -350,7 +359,7 @@ module.exports = {
     try {
       // Expect body: { fields: [{key, value}, ...] }  (array from client)
       // or body: { key: 'fieldName', value: 'fieldValue', action: 'set'|'delete' }  (single op)
-      const contact = (await db.query('SELECT custom_fields FROM contacts WHERE id=$1', [req.params.id])).rows[0];
+      const contact = (await db.query('SELECT custom_fields FROM contacts WHERE id=?', [req.params.id])).rows[0];
       if (!contact) return res.status(404).json({ error: 'Contact not found' });
 
       let cf = contact.custom_fields || {};
@@ -372,7 +381,7 @@ module.exports = {
         if (key) cf[key] = (req.body.value || '').trim();
       }
 
-      await db.query('UPDATE contacts SET custom_fields=$1::jsonb, updated_at=NOW() WHERE id=$2', [JSON.stringify(cf), req.params.id]);
+      await db.query('UPDATE contacts SET custom_fields=?, updated_at=NOW() WHERE id=?', [JSON.stringify(cf), req.params.id]);
       return res.json({ ok: true, custom_fields: cf });
     } catch (e) {
       return res.status(500).json({ error: e.message });
@@ -381,7 +390,7 @@ module.exports = {
 
   remove: async (req, res) => {
     try {
-      await db.query("UPDATE contacts SET status='invalid', updated_at=NOW() WHERE id=$1", [req.params.id]);
+      await db.query("UPDATE contacts SET status='invalid', updated_at=NOW() WHERE id=?", [req.params.id]);
       req.flash('success', 'Contact deleted');
       res.redirect('/contacts');
     } catch (e) {
@@ -400,7 +409,7 @@ module.exports = {
       }
       const ids = Array.isArray(req.body.ids) ? req.body.ids : [];
       if (!ids.length) return res.status(400).json({ error: 'ids required' });
-      await db.query("UPDATE contacts SET status='invalid', updated_at=NOW() WHERE id = ANY($1::uuid[])", [ids]);
+      await db.query("UPDATE contacts SET status='invalid', updated_at=NOW() WHERE id IN (?)", [ids]);
       res.json({ ok: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
   },
@@ -413,18 +422,20 @@ module.exports = {
       if (req.body.selectAll === 'true' || req.body.selectAll === true) {
         const filters = req.body.filters || {};
         const { where, params } = buildContactWhere(filters);
-        const idx = params.length + 1;
         await db.query(
-          `UPDATE contacts SET tags = array_append(tags, $${idx}), updated_at=NOW()
-           WHERE ${where} AND NOT (tags @> ARRAY[$${idx}]::text[])`,
-          [...params, tag],
+          `UPDATE contacts SET tags = JSON_ARRAY_APPEND(COALESCE(tags, JSON_ARRAY()), '$', ?), updated_at=NOW()
+           WHERE ${where} AND NOT JSON_CONTAINS(COALESCE(tags, JSON_ARRAY()), JSON_QUOTE(?))`,
+          [...params, tag, tag],
         );
         return res.json({ ok: true, all: true });
       }
 
       const ids = Array.isArray(req.body.ids) ? req.body.ids : [];
       if (!ids.length || !tag) return res.status(400).json({ error: 'ids and tag required' });
-      await db.query('UPDATE contacts SET tags = ARRAY(SELECT DISTINCT unnest(tags || $1::text[])), updated_at=NOW() WHERE id = ANY($2::uuid[])', [[tag], ids]);
+      await db.query(
+        'UPDATE contacts SET tags = JSON_ARRAY_APPEND(COALESCE(tags, JSON_ARRAY()), \'$\', ?), updated_at=NOW() WHERE id IN (?) AND NOT JSON_CONTAINS(COALESCE(tags, JSON_ARRAY()), JSON_QUOTE(?))',
+        [tag, ids, tag]
+      );
       res.json({ ok: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
   },

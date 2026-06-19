@@ -35,8 +35,8 @@ new Worker('personalize', async (job) => {
 
   await db.query(
     `UPDATE campaign_contacts
-     SET personalized_subject=$1, personalized_body_html=$2, status='ready'
-     WHERE id=$3`,
+     SET personalized_subject=?, personalized_body_html=?, status='ready'
+     WHERE id=?`,
     [personalized.subject, personalized.body_html, campaignContactId],
   );
 

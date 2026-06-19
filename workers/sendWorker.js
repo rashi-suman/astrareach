@@ -42,16 +42,16 @@ function htmlToPlainText(html) {
 async function tryCompleteCampaign(campaignId) {
   try {
     const r = await db.query(
-      `SELECT COUNT(*)::int AS pending
+      `SELECT COUNT(*) AS pending
        FROM campaign_contacts
-       WHERE campaign_id=$1
+       WHERE campaign_id = ?
          AND status NOT IN ('sent','delivered','opened','clicked','booked','bounced','unsubscribed','failed')`,
       [campaignId],
     );
     if (r.rows[0].pending === 0) {
       await db.query(
         `UPDATE campaigns SET status='completed', completed_at=COALESCE(completed_at, NOW())
-         WHERE id=$1 AND status IN ('active','paused')`,
+         WHERE id = ? AND status IN ('active','paused')`,
         [campaignId],
       );
       console.log(`[sendWorker] Campaign ${campaignId} marked completed`);
@@ -69,8 +69,8 @@ const sendWorker = new Worker('send', async (job) => {
   if (jobEmail?.subject || jobEmail?.body_html) {
     await db.query(
       `UPDATE campaign_contacts
-       SET personalized_subject=$1, personalized_body_html=$2, status='ready'
-       WHERE id=$3`,
+       SET personalized_subject = ?, personalized_body_html = ?, status = 'ready'
+       WHERE id = ?`,
       [jobEmail.subject || '', jobEmail.body_html || '', campaignContactId],
     );
   }
@@ -90,7 +90,7 @@ const sendWorker = new Worker('send', async (job) => {
      JOIN contacts   c   ON c.id   = cc.contact_id
      JOIN campaigns  cam ON cam.id = cc.campaign_id
      LEFT JOIN templates t ON t.id = cam.template_id
-     WHERE cc.id = $1`,
+     WHERE cc.id = ?`,
     [campaignContactId],
   );
 
@@ -109,7 +109,7 @@ const sendWorker = new Worker('send', async (job) => {
   const today = new Date().toISOString().slice(0, 10);
   if (row.last_reset_date?.toISOString?.().slice(0, 10) !== today) {
     await db.query(
-      `UPDATE campaigns SET emails_sent_today=0, last_reset_date=CURRENT_DATE WHERE id=$1`,
+      `UPDATE campaigns SET emails_sent_today = 0, last_reset_date = CURRENT_DATE WHERE id = ?`,
       [row.campaign_id],
     );
     row.emails_sent_today = 0;
@@ -126,7 +126,7 @@ const sendWorker = new Worker('send', async (job) => {
   } catch (err) {
     // Mark as failed and still check campaign completion
     await db.query(
-      `UPDATE campaign_contacts SET status='failed', error_message=$1 WHERE id=$2`,
+      `UPDATE campaign_contacts SET status = 'failed', error_message = ? WHERE id = ?`,
       [err.message, campaignContactId],
     );
     await tryCompleteCampaign(row.campaign_id);
@@ -168,7 +168,7 @@ const sendWorker = new Worker('send', async (job) => {
   } catch (err) {
     // Mark contact as failed
     await db.query(
-      `UPDATE campaign_contacts SET status='failed', error_message=$1 WHERE id=$2`,
+      `UPDATE campaign_contacts SET status = 'failed', error_message = ? WHERE id = ?`,
       [err.message.slice(0, 500), campaignContactId],
     );
     await tryCompleteCampaign(row.campaign_id);
@@ -178,12 +178,12 @@ const sendWorker = new Worker('send', async (job) => {
   // Success — update DB
   await db.query(
     `UPDATE campaign_contacts
-     SET status='sent', sent_at=NOW(), provider_used=$1, provider_message_id=$2
-     WHERE id=$3`,
+     SET status = 'sent', sent_at = NOW(), provider_used = ?, provider_message_id = ?
+     WHERE id = ?`,
     [provider, sendResult.messageId, campaignContactId],
   );
   await db.query(
-    `UPDATE campaigns SET emails_sent=emails_sent+1, emails_sent_today=emails_sent_today+1 WHERE id=$1`,
+    `UPDATE campaigns SET emails_sent = emails_sent + 1, emails_sent_today = emails_sent_today + 1 WHERE id = ?`,
     [row.campaign_id],
   );
 

@@ -1,4 +1,5 @@
 'use strict';
+const { v4: uuidv4 } = require('uuid');
 const db  = require('../config/db');
 const { connection: redis } = require('../config/redis');
 const { encrypt, decrypt } = require('../services/encryption');
@@ -28,7 +29,7 @@ function effectiveWhatsAppNumberFromRow(row) {
  */
 async function loadContactForWaOpt(req, contactId) {
   const { rows } = await db.query(
-    `SELECT id, whatsapp_phone, phone, org_id FROM contacts WHERE id = $1::uuid`,
+    `SELECT id, whatsapp_phone, phone, org_id FROM contacts WHERE id = ?`,
     [contactId],
   );
   const row = rows[0];
@@ -58,7 +59,7 @@ async function populateWaCampaignAudience(cam) {
 
   if (segmentId) {
     const { rows: [seg] } = await db.query(
-      `SELECT filters FROM segments WHERE id=$1 AND (org_id = $2 OR org_id IS NULL)`,
+      `SELECT filters FROM segments WHERE id=? AND (org_id = ? OR org_id IS NULL)`,
       [segmentId, org],
     );
     if (!seg) throw new Error('Segment not found for this organisation');
@@ -74,24 +75,22 @@ async function populateWaCampaignAudience(cam) {
   const consentFrag = audience === 'wa_registry' ? '' : ' AND c.whatsapp_opted_in = true ';
 
   await db.query(
-    `INSERT INTO wa_campaign_contacts (org_id, campaign_id, contact_id, phone_number)
-     SELECT $1, $2, c.id, ${SQL_EFFECTIVE_WA}
+    `INSERT IGNORE INTO wa_campaign_contacts (org_id, campaign_id, contact_id, phone_number)
+     SELECT ?, ?, c.id, ${SQL_EFFECTIVE_WA}
      FROM contacts c
      ${joinRegistry}
-     WHERE c.org_id = $1 AND ${SQL_EFFECTIVE_WA} IS NOT NULL ${consentFrag}
-       AND (${segmentFrag})
-     ON CONFLICT (campaign_id, contact_id) DO NOTHING`,
-    [org, cam.id, ...segParams],
+     WHERE c.org_id = ? AND ${SQL_EFFECTIVE_WA} IS NOT NULL ${consentFrag}
+       AND (${segmentFrag})`,
+    [org, cam.id, org, ...segParams],
   );
 
   if (audience === 'wa_registry') {
     await db.query(
       `UPDATE contacts c
-       SET whatsapp_opted_in = TRUE,
-           whatsapp_opted_in_at = COALESCE(c.whatsapp_opted_in_at, NOW())
-       FROM wa_campaign_contacts w
-       WHERE w.campaign_id = $1 AND w.contact_id = c.id AND c.org_id = $2
-         AND c.whatsapp_opted_in IS NOT TRUE`,
+       INNER JOIN wa_campaign_contacts w ON w.campaign_id = ? AND w.contact_id = c.id AND c.org_id = ?
+       SET c.whatsapp_opted_in = TRUE,
+           c.whatsapp_opted_in_at = COALESCE(c.whatsapp_opted_in_at, NOW())
+       WHERE c.whatsapp_opted_in IS NOT TRUE`,
       [cam.id, org],
     );
   }
@@ -107,7 +106,7 @@ async function phonesIndex(req, res) {
       `SELECT id, display_name, phone_number, phone_number_id, bsp, tier, daily_limit,
               quality_score, quality_updated_at, is_active, is_paused, pause_reason,
               messages_sent_today, last_reset_date, created_at
-       FROM wa_phone_numbers WHERE org_id=$1 ORDER BY created_at DESC`,
+       FROM wa_phone_numbers WHERE org_id=? ORDER BY created_at DESC`,
       [orgId(req)],
     );
     res.render('whatsapp/phones/index', {
@@ -125,7 +124,7 @@ async function phoneCreate(req, res) {
     const dailyLimit = { 1: 1000, 2: 10000, 3: 100000, 4: 999999 }[tierInt] || 1000;
     await db.query(
       `INSERT INTO wa_phone_numbers (org_id, display_name, phone_number, phone_number_id, waba_id, bsp, bsp_api_key, access_token, tier, daily_limit)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+       VALUES (?,?,?,?,?,?,?,?,?,?)`,
       [orgId(req), display_name, phone_number, phone_number_id, waba_id, bsp,
        bsp_api_key ? encrypt(bsp_api_key) : null,
        access_token ? encrypt(access_token) : null,
@@ -145,7 +144,7 @@ async function phoneUpdate(req, res) {
     const dailyLimit = { 1: 1000, 2: 10000, 3: 100000, 4: 999999 }[tierInt] || 1000;
 
     const { rows: [row] } = await db.query(
-      `SELECT id FROM wa_phone_numbers WHERE id=$1 AND org_id=$2`,
+      `SELECT id FROM wa_phone_numbers WHERE id=? AND org_id=?`,
       [req.params.id, orgId(req)],
     );
     if (!row) return res.status(404).json({ error: 'Not found' });
@@ -155,16 +154,16 @@ async function phoneUpdate(req, res) {
 
     await db.query(
       `UPDATE wa_phone_numbers SET
-         display_name    = $1,
-         phone_number    = $2,
-         phone_number_id = $3,
-         waba_id         = $4,
-         bsp               = $5,
-         tier              = $6,
-         daily_limit       = $7,
-         bsp_api_key       = COALESCE($8, bsp_api_key),
-         access_token      = COALESCE($9, access_token)
-       WHERE id=$10 AND org_id=$11`,
+         display_name    = ?,
+         phone_number    = ?,
+         phone_number_id = ?,
+         waba_id         = ?,
+         bsp               = ?,
+         tier              = ?,
+         daily_limit       = ?,
+         bsp_api_key       = COALESCE(?, bsp_api_key),
+         access_token      = COALESCE(?, access_token)
+       WHERE id=? AND org_id=?`,
       [
         display_name,
         phone_number,
@@ -185,18 +184,18 @@ async function phoneUpdate(req, res) {
 
 async function phoneDelete(req, res) {
   try {
-    await db.query(`UPDATE wa_phone_numbers SET is_active=false WHERE id=$1 AND org_id=$2`, [req.params.id, orgId(req)]);
+    await db.query(`UPDATE wa_phone_numbers SET is_active=false WHERE id=? AND org_id=?`, [req.params.id, orgId(req)]);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 }
 
 async function phoneQuality(req, res) {
   try {
-    const { rows: [phone] } = await db.query(`SELECT * FROM wa_phone_numbers WHERE id=$1 AND org_id=$2`, [req.params.id, orgId(req)]);
+    const { rows: [phone] } = await db.query(`SELECT * FROM wa_phone_numbers WHERE id=? AND org_id=?`, [req.params.id, orgId(req)]);
     if (!phone) return res.status(404).json({ error: 'Not found' });
     const bsp   = new WaBspService(phone);
     const score = await bsp.getQualityRating();
-    await db.query(`UPDATE wa_phone_numbers SET quality_score=$1, quality_updated_at=NOW() WHERE id=$2`, [score, phone.id]);
+    await db.query(`UPDATE wa_phone_numbers SET quality_score=?, quality_updated_at=NOW() WHERE id=?`, [score, phone.id]);
     res.json({ quality_score: score });
   } catch (e) { res.status(500).json({ error: e.message }); }
 }
@@ -209,17 +208,17 @@ async function templatesIndex(req, res) {
   try {
     const q = (req.query.q || '').trim();
     const { page: pageNo, limit, offset } = getPagination(req);
-    const filter = q ? `AND (name ILIKE $2 OR body_text ILIKE $2)` : '';
-    const params = q ? [orgId(req), `%${q}%`] : [orgId(req)];
+    const filter = q ? `AND (name LIKE ? OR body_text LIKE ?)` : '';
+    const params = q ? [orgId(req), `%${q}%`, `%${q}%`] : [orgId(req)];
 
     const [dataRes, countRes] = await Promise.all([
       db.query(`SELECT id, name, category, language, status, header_type, header_content, body_text, footer_text, buttons, variables, created_at, rejected_reason
-                FROM wa_templates WHERE org_id=$1 ${filter}
+                FROM wa_templates WHERE org_id=? ${filter}
                 ORDER BY created_at DESC LIMIT ${limit} OFFSET ${offset}`, params),
-      db.query(`SELECT COUNT(*) FROM wa_templates WHERE org_id=$1 ${filter}`, params),
+      db.query(`SELECT COUNT(*) FROM wa_templates WHERE org_id=? ${filter}`, params),
     ]);
     const phones = (await db.query(
-      `SELECT id, display_name, phone_number_id, bsp FROM wa_phone_numbers WHERE org_id=$1 AND is_active=true ORDER BY created_at DESC`,
+      `SELECT id, display_name, phone_number_id, bsp FROM wa_phone_numbers WHERE org_id=? AND is_active=true ORDER BY created_at DESC`,
       [orgId(req)],
     )).rows;
 
@@ -234,7 +233,7 @@ async function templatesIndex(req, res) {
 async function templateNewPage(req, res) {
   try {
     const phones = (await db.query(
-      `SELECT id, display_name, phone_number_id, bsp FROM wa_phone_numbers WHERE org_id=$1 AND is_active=true ORDER BY created_at DESC`,
+      `SELECT id, display_name, phone_number_id, bsp FROM wa_phone_numbers WHERE org_id=? AND is_active=true ORDER BY created_at DESC`,
       [orgId(req)],
     )).rows;
     res.render('whatsapp/templates/new', {
@@ -272,15 +271,17 @@ async function templateCreate(req, res) {
     const buttonsArr = buttons ? (Array.isArray(buttons) ? buttons : JSON.parse(buttons)) : [];
     const lang        = language || 'en';
 
-    const { rows: [inserted] } = await db.query(
-      `INSERT INTO wa_templates (org_id, phone_number_id, name, category, language, header_type, header_content, body_text, footer_text, buttons, variables, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
-      [orgId(req), phone_number_id, normName, category, lang, header_type || null, header_content || null, body_text,
-       footer_text || null, JSON.stringify(buttonsArr), vars, req.user.id],
+    const newTemplateId = uuidv4();
+    await db.query(
+      `INSERT INTO wa_templates (id, org_id, phone_number_id, name, category, language, header_type, header_content, body_text, footer_text, buttons, variables, created_by)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [newTemplateId, orgId(req), phone_number_id, normName, category, lang, header_type || null, header_content || null, body_text,
+       footer_text || null, JSON.stringify(buttonsArr), JSON.stringify(vars), req.user.id],
     );
+    const inserted = { id: newTemplateId };
 
     const { rows: [phone] } = await db.query(
-      `SELECT * FROM wa_phone_numbers WHERE org_id=$1 AND phone_number_id=$2 AND is_active=true LIMIT 1`,
+      `SELECT * FROM wa_phone_numbers WHERE org_id=? AND phone_number_id=? AND is_active=true LIMIT 1`,
       [orgId(req), phone_number_id],
     );
 
@@ -299,13 +300,13 @@ async function templateCreate(req, res) {
       if (result.ok) {
         const dbStatus = WaBspService.mapMetaManagementStatusToDb(result.status);
         await db.query(
-          `UPDATE wa_templates SET meta_template_id = COALESCE($1::text, meta_template_id), status = $2, rejected_reason = NULL WHERE id = $3`,
-          [result.id, dbStatus, inserted.id],
+          `UPDATE wa_templates SET meta_template_id = COALESCE(?, meta_template_id), status = ?, rejected_reason = NULL WHERE id = ?`,
+          [result.id != null ? String(result.id) : null, dbStatus, inserted.id],
         );
         meta = { submitted: true, status: dbStatus, meta_template_id: result.id };
       } else {
         await db.query(
-          `UPDATE wa_templates SET rejected_reason = $1 WHERE id = $2`,
+          `UPDATE wa_templates SET rejected_reason = ? WHERE id = ?`,
           [String(result.message || 'Meta error').slice(0, 2000), inserted.id],
         );
         meta = { submitted: false, error: result.message };
@@ -334,8 +335,8 @@ async function templatesSyncFromMeta(req, res) {
   try {
     const waPhoneId = req.body.wa_phone_id || req.query.wa_phone_id || null;
     const q         = waPhoneId
-      ? `SELECT * FROM wa_phone_numbers WHERE id=$1 AND org_id=$2 AND is_active=true`
-      : `SELECT * FROM wa_phone_numbers WHERE org_id=$1 AND is_active=true`;
+      ? `SELECT * FROM wa_phone_numbers WHERE id=? AND org_id=? AND is_active=true`
+      : `SELECT * FROM wa_phone_numbers WHERE org_id=? AND is_active=true`;
     const params = waPhoneId ? [waPhoneId, orgId(req)] : [orgId(req)];
     const { rows: phones } = await db.query(q, params);
 
@@ -347,18 +348,18 @@ async function templatesSyncFromMeta(req, res) {
         const metaLang = mt.language || '';
         const st       = WaBspService.mapMetaManagementStatusToDb(mt.status);
         const { rows: locals } = await db.query(
-          `SELECT id, language FROM wa_templates WHERE org_id=$1 AND phone_number_id=$2 AND lower(trim(name)) = lower(trim($3))`,
+          `SELECT id, language FROM wa_templates WHERE org_id=? AND phone_number_id=? AND lower(trim(name)) = lower(trim(?))`,
           [orgId(req), phone.phone_number_id, mt.name],
         );
         for (const loc of locals) {
           if (!WaBspService.languagesMatchForSync(loc.language, metaLang)) continue;
           const r = await db.query(
             `UPDATE wa_templates SET
-               status = $1,
-               meta_template_id = COALESCE($2::text, meta_template_id),
-               rejected_reason = CASE WHEN $1::text = 'REJECTED' THEN COALESCE(rejected_reason, 'Rejected by Meta') ELSE NULL END
-             WHERE id = $3`,
-            [st, mt.id != null ? String(mt.id) : null, loc.id],
+               status = ?,
+               meta_template_id = COALESCE(?, meta_template_id),
+               rejected_reason = CASE WHEN ? = 'REJECTED' THEN COALESCE(rejected_reason, 'Rejected by Meta') ELSE NULL END
+             WHERE id = ?`,
+            [st, mt.id != null ? String(mt.id) : null, st, loc.id],
           );
           updated += r.rowCount || 0;
         }
@@ -372,10 +373,10 @@ async function templatesSyncFromMeta(req, res) {
 
 async function templateDelete(req, res) {
   try {
-    const { rows: [t] } = await db.query(`SELECT status FROM wa_templates WHERE id=$1 AND org_id=$2`, [req.params.id, orgId(req)]);
+    const { rows: [t] } = await db.query(`SELECT status FROM wa_templates WHERE id=? AND org_id=?`, [req.params.id, orgId(req)]);
     if (!t) return res.status(404).json({ error: 'Not found' });
     if (!['PENDING','REJECTED'].includes(t.status)) return res.status(400).json({ error: 'Only PENDING or REJECTED templates can be deleted' });
-    await db.query(`DELETE FROM wa_templates WHERE id=$1`, [req.params.id]);
+    await db.query(`DELETE FROM wa_templates WHERE id=?`, [req.params.id]);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 }
@@ -388,20 +389,20 @@ async function optInsIndex(req, res) {
   try {
     const { page: pageNo, limit, offset } = getPagination(req);
     const status = req.query.status || '';
-    const filter = status ? `AND oi.status=$2` : '';
-    const countFilter = status ? `AND status=$2` : '';
+    const filter = status ? `AND oi.status=?` : '';
+    const countFilter = status ? `AND status=?` : '';
     const params = status ? [orgId(req), status] : [orgId(req)];
 
     const [dataRes, countRes] = await Promise.all([
       db.query(`SELECT oi.*, c.first_name, c.last_name, c.email
                 FROM wa_opt_ins oi LEFT JOIN contacts c ON c.id=oi.contact_id
-                WHERE oi.org_id=$1 ${filter} ORDER BY COALESCE(oi.opted_in_at, oi.opted_out_at) DESC NULLS LAST
+                WHERE oi.org_id=? ${filter} ORDER BY COALESCE(oi.opted_in_at, oi.opted_out_at) DESC
                 LIMIT ${limit} OFFSET ${offset}`, params),
-      db.query(`SELECT COUNT(*)::int AS count FROM wa_opt_ins WHERE org_id=$1 ${countFilter}`, params),
+      db.query(`SELECT COUNT(*) AS count FROM wa_opt_ins WHERE org_id=? ${countFilter}`, params),
     ]);
 
     const segments = (await db.query(
-      `SELECT id, name, contact_count FROM segments WHERE org_id=$1 OR org_id IS NULL ORDER BY name`,
+      `SELECT id, name, contact_count FROM segments WHERE org_id=? OR org_id IS NULL ORDER BY name`,
       [orgId(req)],
     )).rows;
 
@@ -427,16 +428,16 @@ async function optInRecord(req, res) {
     }
     await db.query(
       `INSERT INTO wa_opt_ins (org_id, contact_id, phone_number, status, source, opted_in_at)
-       VALUES ($1,$2,$3,'opted_in','agent_recorded',NOW())
-       ON CONFLICT (org_id, phone_number) DO UPDATE SET status='opted_in', opted_in_at=NOW()`,
+       VALUES (?,?,?,'opted_in','agent_recorded',NOW())
+       ON DUPLICATE KEY UPDATE status='opted_in', opted_in_at=NOW()`,
       [orgId(req), contact.id, num],
     );
     await db.query(
       `UPDATE contacts SET whatsapp_opted_in=true, whatsapp_opted_in_at=NOW(),
-         whatsapp_phone = COALESCE(NULLIF(TRIM(COALESCE(whatsapp_phone,'')), ''), $2),
-         org_id = COALESCE(org_id, $3::uuid)
-       WHERE id=$1`,
-      [contact.id, num, orgId(req)],
+         whatsapp_phone = COALESCE(NULLIF(TRIM(COALESCE(whatsapp_phone,'')), ''), ?),
+         org_id = COALESCE(org_id, ?)
+       WHERE id=?`,
+      [num, orgId(req), contact.id],
     );
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
@@ -456,11 +457,11 @@ async function optOutRecord(req, res) {
     }
     await db.query(
       `INSERT INTO wa_opt_ins (org_id, contact_id, phone_number, status, source, opted_out_at, opted_out_reason)
-       VALUES ($1,$2,$3,'opted_out','agent_recorded',NOW(),'manual')
-       ON CONFLICT (org_id, phone_number) DO UPDATE SET status='opted_out', opted_out_at=NOW(), opted_out_reason='manual'`,
+       VALUES (?,?,?,'opted_out','agent_recorded',NOW(),'manual')
+       ON DUPLICATE KEY UPDATE status='opted_out', opted_out_at=NOW(), opted_out_reason='manual'`,
       [orgId(req), contact.id, num],
     );
-    await db.query(`UPDATE contacts SET whatsapp_opted_in=false WHERE id=$1`, [contact.id]);
+    await db.query(`UPDATE contacts SET whatsapp_opted_in=false WHERE id=?`, [contact.id]);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 }
@@ -480,7 +481,7 @@ async function optInsImportSegment(req, res) {
       params = [];
     } else if (segment_id) {
       const { rows: [seg] } = await db.query(
-        `SELECT id, filters FROM segments WHERE id=$1 AND (org_id=$2 OR org_id IS NULL)`,
+        `SELECT id, filters FROM segments WHERE id=? AND (org_id=? OR org_id IS NULL)`,
         [segment_id, orgId(req)],
       );
       if (!seg) return res.status(404).json({ error: 'Segment not found' });
@@ -492,33 +493,39 @@ async function optInsImportSegment(req, res) {
       return res.status(400).json({ error: 'Send segment_id or import_all_with_whatsapp: true' });
     }
 
-    const ins = await db.query(
+    // MySQL has no RETURNING; we use INSERT ... ON DUPLICATE KEY UPDATE, then SELECT affected contacts
+    await db.query(
       `INSERT INTO wa_opt_ins (org_id, contact_id, phone_number, status, source, opted_in_at)
-       SELECT $1::uuid, c.id, ${SQL_EFFECTIVE_WA}, 'opted_in', ${importAll ? `'bulk_all_wa'` : `'segment_import'`}, NOW()
+       SELECT ?, c.id, ${SQL_EFFECTIVE_WA}, 'opted_in', ${importAll ? `'bulk_all_wa'` : `'segment_import'`}, NOW()
        FROM contacts c
-       WHERE c.org_id = $1 AND ${SQL_EFFECTIVE_WA} IS NOT NULL
+       WHERE c.org_id = ? AND ${SQL_EFFECTIVE_WA} IS NOT NULL
          AND (${whereFrag})
-       ON CONFLICT (org_id, phone_number) DO UPDATE SET
+       ON DUPLICATE KEY UPDATE
          status = 'opted_in',
-         contact_id = EXCLUDED.contact_id,
-         source = EXCLUDED.source,
+         contact_id = VALUES(contact_id),
+         source = VALUES(source),
          opted_in_at = NOW(),
          opted_out_at = NULL,
-         opted_out_reason = NULL
-       RETURNING contact_id`,
-      [orgId(req), ...params],
+         opted_out_reason = NULL`,
+      [orgId(req), orgId(req), ...params],
     );
 
-    const ids = [...new Set(ins.rows.map((r) => r.contact_id).filter(Boolean))];
+    // Fetch the contact_ids that are now opted_in for this org to update contacts table
+    const { rows: affectedRows } = await db.query(
+      `SELECT contact_id FROM wa_opt_ins WHERE org_id = ? AND status = 'opted_in'`,
+      [orgId(req)],
+    );
+
+    const ids = [...new Set(affectedRows.map((r) => r.contact_id).filter(Boolean))];
     if (ids.length) {
       await db.query(
         `UPDATE contacts SET whatsapp_opted_in = TRUE, whatsapp_opted_in_at = COALESCE(whatsapp_opted_in_at, NOW())
-         WHERE org_id = $1 AND id = ANY($2::uuid[])`,
+         WHERE org_id = ? AND id IN (?)`,
         [orgId(req), ids],
       );
     }
 
-    res.json({ ok: true, imported: ins.rows.length, contacts_updated: ids.length });
+    res.json({ ok: true, imported: affectedRows.length, contacts_updated: ids.length });
   } catch (e) { res.status(500).json({ error: e.message }); }
 }
 
@@ -532,9 +539,9 @@ async function campaignsIndex(req, res) {
     const status = req.query.status || '';
     const { page: pageNo, limit, offset } = getPagination(req);
 
-    let where = 'WHERE c.org_id=$1', params = [orgId(req)], pIdx = 2;
-    if (q) { where += ` AND c.name ILIKE $${pIdx++}`; params.push(`%${q}%`); }
-    if (status) { where += ` AND c.status=$${pIdx++}`; params.push(status); }
+    let where = 'WHERE c.org_id=?', params = [orgId(req)];
+    if (q) { where += ` AND c.name LIKE ?`; params.push(`%${q}%`); }
+    if (status) { where += ` AND c.status=?`; params.push(status); }
 
     const [dataRes, countRes, summaryRes] = await Promise.all([
       db.query(`SELECT c.id, c.name, c.status, c.messages_sent, c.total_contacts,
@@ -546,7 +553,7 @@ async function campaignsIndex(req, res) {
                 LEFT JOIN wa_templates t ON t.id=c.template_id
                 ${where} ORDER BY c.created_at DESC LIMIT ${limit} OFFSET ${offset}`, params),
       db.query(`SELECT COUNT(*) FROM wa_campaigns c ${where}`, params),
-      db.query(`SELECT status, COUNT(*) AS cnt FROM wa_campaigns WHERE org_id=$1 GROUP BY status`, [orgId(req)]),
+      db.query(`SELECT status, COUNT(*) AS cnt FROM wa_campaigns WHERE org_id=? GROUP BY status`, [orgId(req)]),
     ]);
     const summary = Object.fromEntries(summaryRes.rows.map(r => [r.status, parseInt(r.cnt)]));
 
@@ -561,10 +568,10 @@ async function campaignsIndex(req, res) {
 async function campaignWizardStep(req, res) {
   const step = parseInt(req.params.step) || 1;
   try {
-    const phones    = (await db.query(`SELECT id, display_name, phone_number, tier, daily_limit, quality_score, is_paused FROM wa_phone_numbers WHERE org_id=$1 AND is_active=true AND is_paused=false`, [orgId(req)])).rows;
-    const templates = (await db.query(`SELECT id, name, category, language, body_text, variables, buttons FROM wa_templates WHERE org_id=$1 AND status='APPROVED'`, [orgId(req)])).rows;
+    const phones    = (await db.query(`SELECT id, display_name, phone_number, tier, daily_limit, quality_score, is_paused FROM wa_phone_numbers WHERE org_id=? AND is_active=true AND is_paused=false`, [orgId(req)])).rows;
+    const templates = (await db.query(`SELECT id, name, category, language, body_text, variables, buttons FROM wa_templates WHERE org_id=? AND status='APPROVED'`, [orgId(req)])).rows;
     const segments = (await db.query(
-      `SELECT id, name, contact_count FROM segments WHERE org_id=$1 OR org_id IS NULL ORDER BY name`,
+      `SELECT id, name, contact_count FROM segments WHERE org_id=? OR org_id IS NULL ORDER BY name`,
       [orgId(req)],
     )).rows;
 
@@ -603,12 +610,13 @@ async function campaignWizardStepPost(req, res) {
     const timeWA = rawTime.length === 5 ? rawTime : rawTime.slice(0, 8);
     const scheduledWaAt = scheduledInstantFromParts(dateWA, timeWA, tzWA);
 
-    const { rows: [cam] } = await db.query(
+    const newCamId = uuidv4();
+    await db.query(
       `INSERT INTO wa_campaigns
-         (org_id, name, description, phone_number_id, template_id, segment_id, audience_source,
+         (id, org_id, name, description, phone_number_id, template_id, segment_id, audience_source,
           daily_limit, messages_per_second, send_time, timezone, variable_mapping, booking_url, scheduled_at, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15) RETURNING id`,
-      [orgId(req), d.name, d.description || null,
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [newCamId, orgId(req), d.name, d.description || null,
        d.phone_number_id, d.template_id, segmentId, audienceSource,
        parseInt(d.daily_limit || 1000),
        parseFloat(d.messages_per_second || 1),
@@ -617,6 +625,7 @@ async function campaignWizardStepPost(req, res) {
        scheduledWaAt,
        req.user.id],
     );
+    const cam = { id: newCamId };
 
     delete req.session.waCampaignDraft;
     req.flash('success', 'Campaign created. Click Start to begin sending.');
@@ -636,7 +645,7 @@ async function campaignDetail(req, res) {
       FROM wa_campaigns c
       LEFT JOIN wa_phone_numbers pn ON pn.id=c.phone_number_id
       LEFT JOIN wa_templates t ON t.id=c.template_id
-      WHERE c.id=$1 AND c.org_id=$2`, [req.params.id, orgId(req)]);
+      WHERE c.id=? AND c.org_id=?`, [req.params.id, orgId(req)]);
 
     if (!cam) return res.status(404).render('404', { user: req.user, page: 'whatsapp' });
 
@@ -646,10 +655,10 @@ async function campaignDetail(req, res) {
              c.first_name, c.last_name, c.company, c.email
       FROM wa_campaign_contacts wacc
       JOIN contacts c ON c.id=wacc.contact_id
-      WHERE wacc.campaign_id=$1 ORDER BY wacc.created_at LIMIT 200`, [req.params.id]);
+      WHERE wacc.campaign_id=? ORDER BY wacc.created_at LIMIT 200`, [req.params.id]);
 
     const statsRes = await db.query(`
-      SELECT event_type, COUNT(*) AS cnt FROM wa_events WHERE campaign_id=$1 GROUP BY event_type`,
+      SELECT event_type, COUNT(*) AS cnt FROM wa_events WHERE campaign_id=? GROUP BY event_type`,
       [req.params.id]);
     const stats = Object.fromEntries(statsRes.rows.map(r => [r.event_type, parseInt(r.cnt)]));
 
@@ -657,7 +666,7 @@ async function campaignDetail(req, res) {
       SELECT we.event_type, we.created_at, we.phone_number,
              c.first_name, c.last_name
       FROM wa_events we LEFT JOIN contacts c ON c.id=we.contact_id
-      WHERE we.campaign_id=$1 ORDER BY we.created_at DESC LIMIT 20`, [req.params.id])).rows;
+      WHERE we.campaign_id=? ORDER BY we.created_at DESC LIMIT 20`, [req.params.id])).rows;
 
     res.render('whatsapp/campaigns/detail', {
       title: cam.name, page: 'whatsapp',
@@ -670,10 +679,10 @@ async function campaignDetail(req, res) {
 async function campaignStats(req, res) {
   try {
     const statsRes = await db.query(`
-      SELECT event_type, COUNT(*) AS cnt FROM wa_events WHERE campaign_id=$1 GROUP BY event_type`,
+      SELECT event_type, COUNT(*) AS cnt FROM wa_events WHERE campaign_id=? GROUP BY event_type`,
       [req.params.id]);
     const { rows: [cam] } = await db.query(
-      `SELECT status, messages_sent, total_contacts FROM wa_campaigns WHERE id=$1`, [req.params.id]);
+      `SELECT status, messages_sent, total_contacts FROM wa_campaigns WHERE id=?`, [req.params.id]);
     res.json({ stats: Object.fromEntries(statsRes.rows.map(r => [r.event_type, parseInt(r.cnt)])), campaign: cam });
   } catch (e) { res.status(500).json({ error: e.message }); }
 }
@@ -681,7 +690,7 @@ async function campaignStats(req, res) {
 async function campaignStart(req, res) {
   try {
     const { rows: [cam] } = await db.query(
-      `SELECT * FROM wa_campaigns WHERE id=$1 AND org_id=$2`, [req.params.id, orgId(req)],
+      `SELECT * FROM wa_campaigns WHERE id=? AND org_id=?`, [req.params.id, orgId(req)],
     );
     if (!cam) return res.status(404).json({ error: 'Not found' });
     if (!['draft', 'paused'].includes(cam.status)) return res.status(400).json({ error: 'Campaign cannot be started' });
@@ -693,25 +702,25 @@ async function campaignStart(req, res) {
         return res.status(500).json({ error: err.message });
       }
       const { rows: [cnt] } = await db.query(
-        `SELECT COUNT(*)::int AS n FROM wa_campaign_contacts WHERE campaign_id=$1`,
+        `SELECT COUNT(*) AS n FROM wa_campaign_contacts WHERE campaign_id=?`,
         [cam.id],
       );
-      await db.query(`UPDATE wa_campaigns SET total_contacts=$1 WHERE id=$2`, [cnt.n, cam.id]);
+      await db.query(`UPDATE wa_campaigns SET total_contacts=? WHERE id=?`, [cnt.n, cam.id]);
     }
 
-    await db.query(`UPDATE wa_campaigns SET status='active', started_at=COALESCE(started_at,NOW()) WHERE id=$1`, [cam.id]);
+    await db.query(`UPDATE wa_campaigns SET status='active', started_at=COALESCE(started_at,NOW()) WHERE id=?`, [cam.id]);
 
     // Enqueue pending contacts
     const { rows: pending } = await db.query(
-      `SELECT id FROM wa_campaign_contacts WHERE campaign_id=$1 AND status='pending'`, [cam.id]);
-    const { rows: [pn] } = await db.query(`SELECT phone_number_id, tier FROM wa_phone_numbers WHERE id=$1`, [cam.phone_number_id]);
+      `SELECT id FROM wa_campaign_contacts WHERE campaign_id=? AND status='pending'`, [cam.id]);
+    const { rows: [pn] } = await db.query(`SELECT phone_number_id, tier FROM wa_phone_numbers WHERE id=?`, [cam.phone_number_id]);
     let delayMs = 0;
     if (cam.scheduled_at) {
       const t = new Date(cam.scheduled_at).getTime();
       if (t > Date.now()) delayMs = Math.max(0, t - Date.now());
     }
     for (const cc of pending) {
-      await db.query(`UPDATE wa_campaign_contacts SET status='queued' WHERE id=$1`, [cc.id]);
+      await db.query(`UPDATE wa_campaign_contacts SET status='queued' WHERE id=?`, [cc.id]);
       await addToWaQueue(cc.id, pn.phone_number_id, pn.tier || 1, delayMs);
     }
 
@@ -721,21 +730,21 @@ async function campaignStart(req, res) {
 
 async function campaignPause(req, res) {
   try {
-    await db.query(`UPDATE wa_campaigns SET status='paused' WHERE id=$1 AND org_id=$2 AND status='active'`, [req.params.id, orgId(req)]);
+    await db.query(`UPDATE wa_campaigns SET status='paused' WHERE id=? AND org_id=? AND status='active'`, [req.params.id, orgId(req)]);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 }
 
 async function campaignResume(req, res) {
   try {
-    await db.query(`UPDATE wa_campaigns SET status='active' WHERE id=$1 AND org_id=$2 AND status='paused'`, [req.params.id, orgId(req)]);
+    await db.query(`UPDATE wa_campaigns SET status='active' WHERE id=? AND org_id=? AND status='paused'`, [req.params.id, orgId(req)]);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 }
 
 async function campaignStop(req, res) {
   try {
-    await db.query(`UPDATE wa_campaigns SET status='stopped', completed_at=NOW() WHERE id=$1 AND org_id=$2`, [req.params.id, orgId(req)]);
+    await db.query(`UPDATE wa_campaigns SET status='stopped', completed_at=NOW() WHERE id=? AND org_id=?`, [req.params.id, orgId(req)]);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 }
@@ -747,19 +756,19 @@ async function campaignStop(req, res) {
 async function analyticsIndex(req, res) {
   try {
     const days = parseInt(req.query.days || 30);
-    const since = `NOW() - INTERVAL '${days} days'`;
+    const since = `NOW() - INTERVAL ${days} DAY`;
 
     const [overview, daily, campaigns, optoutTrend] = await Promise.all([
-      db.query(`SELECT event_type, COUNT(*) AS cnt FROM wa_events WHERE org_id=$1 AND created_at >= ${since} GROUP BY event_type`, [orgId(req)]),
-      db.query(`SELECT DATE(created_at) AS date, event_type, COUNT(*) AS cnt FROM wa_events WHERE org_id=$1 AND created_at >= ${since} GROUP BY date, event_type ORDER BY date`, [orgId(req)]),
+      db.query(`SELECT event_type, COUNT(*) AS cnt FROM wa_events WHERE org_id=? AND created_at >= ${since} GROUP BY event_type`, [orgId(req)]),
+      db.query(`SELECT DATE(created_at) AS date, event_type, COUNT(*) AS cnt FROM wa_events WHERE org_id=? AND created_at >= ${since} GROUP BY date, event_type ORDER BY date`, [orgId(req)]),
       db.query(`SELECT c.id, c.name, c.status, c.messages_sent, c.total_contacts,
-                       COUNT(we.id) FILTER (WHERE we.event_type='delivered') AS delivered,
-                       COUNT(we.id) FILTER (WHERE we.event_type='read') AS read_count,
-                       COUNT(we.id) FILTER (WHERE we.event_type='replied') AS replied,
-                       COUNT(we.id) FILTER (WHERE we.event_type='opted_out') AS opted_out
+                       COUNT(CASE WHEN we.event_type='delivered' THEN we.id END) AS delivered,
+                       COUNT(CASE WHEN we.event_type='read' THEN we.id END) AS read_count,
+                       COUNT(CASE WHEN we.event_type='replied' THEN we.id END) AS replied,
+                       COUNT(CASE WHEN we.event_type='opted_out' THEN we.id END) AS opted_out
                 FROM wa_campaigns c LEFT JOIN wa_events we ON we.campaign_id=c.id AND we.created_at >= ${since}
-                WHERE c.org_id=$1 GROUP BY c.id ORDER BY c.created_at DESC LIMIT 20`, [orgId(req)]),
-      db.query(`SELECT DATE(created_at) AS date, COUNT(*) AS cnt FROM wa_events WHERE org_id=$1 AND event_type='opted_out' AND created_at >= ${since} GROUP BY date ORDER BY date`, [orgId(req)]),
+                WHERE c.org_id=? GROUP BY c.id ORDER BY c.created_at DESC LIMIT 20`, [orgId(req)]),
+      db.query(`SELECT DATE(created_at) AS date, COUNT(*) AS cnt FROM wa_events WHERE org_id=? AND event_type='opted_out' AND created_at >= ${since} GROUP BY date ORDER BY date`, [orgId(req)]),
     ]);
 
     const stats = Object.fromEntries(overview.rows.map(r => [r.event_type, parseInt(r.cnt)]));
@@ -779,13 +788,18 @@ async function analyticsIndex(req, res) {
 async function inboxIndex(req, res) {
   try {
     const { rows: threads } = await db.query(`
-      SELECT DISTINCT ON (m.from_phone)
-        m.from_phone, m.message_body, m.created_at, m.session_expires_at,
+      SELECT m.from_phone, m.message_body, m.created_at, m.session_expires_at,
         c.id AS contact_id, c.first_name, c.last_name, c.company
       FROM wa_inbound_messages m
       LEFT JOIN contacts c ON c.id=m.contact_id
-      WHERE m.org_id=$1
-      ORDER BY m.from_phone, m.created_at DESC`, [orgId(req)]);
+      WHERE m.org_id=?
+        AND (m.from_phone, m.created_at) IN (
+          SELECT from_phone, MAX(created_at)
+          FROM wa_inbound_messages
+          WHERE org_id=?
+          GROUP BY from_phone
+        )
+      ORDER BY m.created_at DESC`, [orgId(req), orgId(req)]);
 
     res.render('whatsapp/inbox/index', {
       title: 'WA Inbox', page: 'whatsapp', breadcrumbs: ['WhatsApp', 'Inbox'],
@@ -796,17 +810,24 @@ async function inboxIndex(req, res) {
 
 async function inboxContact(req, res) {
   try {
-    const { rows: [contact] } = await db.query(`SELECT * FROM contacts WHERE id=$1 AND org_id=$2`, [req.params.contactId, orgId(req)]);
+    const { rows: [contact] } = await db.query(`SELECT * FROM contacts WHERE id=? AND org_id=?`, [req.params.contactId, orgId(req)]);
     if (!contact) return res.status(404).json({ error: 'Not found' });
 
     const { rows: threads } = await db.query(`
-      SELECT DISTINCT ON (m.from_phone) m.from_phone, m.message_body, m.created_at, m.session_expires_at,
+      SELECT m.from_phone, m.message_body, m.created_at, m.session_expires_at,
              c.id AS contact_id, c.first_name, c.last_name, c.company
       FROM wa_inbound_messages m LEFT JOIN contacts c ON c.id=m.contact_id
-      WHERE m.org_id=$1 ORDER BY m.from_phone, m.created_at DESC`, [orgId(req)]);
+      WHERE m.org_id=?
+        AND (m.from_phone, m.created_at) IN (
+          SELECT from_phone, MAX(created_at)
+          FROM wa_inbound_messages
+          WHERE org_id=?
+          GROUP BY from_phone
+        )
+      ORDER BY m.created_at DESC`, [orgId(req), orgId(req)]);
 
     const { rows: messages } = await db.query(`
-      SELECT * FROM wa_inbound_messages WHERE contact_id=$1 ORDER BY created_at ASC LIMIT 100`,
+      SELECT * FROM wa_inbound_messages WHERE contact_id=? ORDER BY created_at ASC LIMIT 100`,
       [contact.id]);
 
     res.render('whatsapp/inbox/index', {

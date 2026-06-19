@@ -13,14 +13,14 @@ function sessionOrgId(req) {
 function segmentContactsWhere(seg) {
   const built = buildFilterWhere(seg.filters);
   const orgId = seg.org_id;
-  const whereSql = orgId ? `org_id=$1 AND (${offsetSqlParams(built.where, 1)})` : `(${built.where})`;
+  const whereSql = orgId ? `org_id=? AND (${offsetSqlParams(built.where, 1)})` : `(${built.where})`;
   const qParams = orgId ? [orgId, ...built.params] : built.params;
   return { whereSql, qParams };
 }
 
 async function liveSegmentContactCount(seg) {
   const { whereSql, qParams } = segmentContactsWhere(seg);
-  const r = await db.query(`SELECT COUNT(*)::int AS count FROM contacts WHERE ${whereSql}`, qParams);
+  const r = await db.query(`SELECT COUNT(*) AS count FROM contacts WHERE ${whereSql}`, qParams);
   return r.rows[0].count;
 }
 
@@ -30,24 +30,24 @@ module.exports = {
       const { page, limit, offset } = getPagination(req, 20);
       const org = sessionOrgId(req);
       const params = [org];
-      const where = ['(org_id = $1 OR org_id IS NULL)'];
+      const where = ['(org_id = ? OR org_id IS NULL)'];
       if (req.query.search) {
-        params.push(`%${req.query.search}%`);
-        where.push(`(name ILIKE $${params.length} OR description ILIKE $${params.length})`);
+        params.push(`%${req.query.search}%`, `%${req.query.search}%`);
+        where.push(`(name LIKE ? OR description LIKE ?)`);
       }
       const wClause = where.join(' AND ');
       const segments = (await db.query(
-        `SELECT * FROM segments WHERE ${wClause} ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+        `SELECT * FROM segments WHERE ${wClause} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
         [...params, limit, offset]
       )).rows;
-      const total = (await db.query(`SELECT COUNT(*)::int AS count FROM segments WHERE ${wClause}`, params)).rows[0].count;
+      const total = (await db.query(`SELECT COUNT(*) AS count FROM segments WHERE ${wClause}`, params)).rows[0].count;
 
       await Promise.all(
         segments.map(async (seg) => {
           const live = await liveSegmentContactCount(seg);
           if (seg.contact_count !== live) {
             await db.query(
-              'UPDATE segments SET contact_count=$1, last_count_at=NOW(), updated_at=NOW() WHERE id=$2',
+              'UPDATE segments SET contact_count=?, last_count_at=NOW(), updated_at=NOW() WHERE id=?',
               [live, seg.id],
             );
           }
@@ -75,7 +75,7 @@ module.exports = {
       const normalizedFilters = typeof filters === 'string' ? JSON.parse(filters || '{}') : (filters || { rules: [] });
       const org = sessionOrgId(req);
       await db.query(
-        'INSERT INTO segments(name, description, filters, created_by, org_id) VALUES($1, $2, $3::jsonb, $4, $5)',
+        'INSERT INTO segments(name, description, filters, created_by, org_id) VALUES(?, ?, ?, ?, ?)',
         [name, description || null, JSON.stringify(normalizedFilters), req.user.id, org],
       );
       req.flash('success', `Segment "${name}" created`);
@@ -88,19 +88,19 @@ module.exports = {
 
   detail: async (req, res) => {
     try {
-      const seg = (await db.query('SELECT * FROM segments WHERE id=$1', [req.params.id])).rows[0];
+      const seg = (await db.query('SELECT * FROM segments WHERE id=?', [req.params.id])).rows[0];
       if (!seg) return res.status(404).send('Segment not found');
       const { whereSql, qParams } = segmentContactsWhere(seg);
       // Always fetch live count and contacts together
       const [contactsResult, countResult] = await Promise.all([
         db.query(`SELECT * FROM contacts WHERE ${whereSql} ORDER BY created_at DESC LIMIT 50`, qParams),
-        db.query(`SELECT COUNT(*)::int AS count FROM contacts WHERE ${whereSql}`, qParams),
+        db.query(`SELECT COUNT(*) AS count FROM contacts WHERE ${whereSql}`, qParams),
       ]);
       const liveCount = countResult.rows[0].count;
       // Persist live count so list cards and campaign pickers stay accurate
       if (seg.contact_count !== liveCount) {
         await db.query(
-          'UPDATE segments SET contact_count=$1, last_count_at=NOW(), updated_at=NOW() WHERE id=$2',
+          'UPDATE segments SET contact_count=?, last_count_at=NOW(), updated_at=NOW() WHERE id=?',
           [liveCount, seg.id],
         );
         seg.contact_count = liveCount;
@@ -113,7 +113,7 @@ module.exports = {
     try {
       const { name, description, filters } = req.body;
       const normalizedFilters = typeof filters === 'string' ? JSON.parse(filters || '{}') : (filters || { rules: [] });
-      await db.query('UPDATE segments SET name=$1, description=$2, filters=$3::jsonb, updated_at=NOW() WHERE id=$4', [name, description || null, JSON.stringify(normalizedFilters), req.params.id]);
+      await db.query('UPDATE segments SET name=?, description=?, filters=?, updated_at=NOW() WHERE id=?', [name, description || null, JSON.stringify(normalizedFilters), req.params.id]);
       req.flash('success', 'Segment updated successfully');
       res.redirect(`/segments/${req.params.id}`);
     } catch (e) {
@@ -126,8 +126,8 @@ module.exports = {
     try {
       // Check if any campaigns are using this segment
       const inUse = (await db.query(
-        `SELECT COUNT(*)::int AS count, string_agg(name, ', ') AS names
-         FROM campaigns WHERE segment_id=$1`,
+        `SELECT COUNT(*) AS count, GROUP_CONCAT(name SEPARATOR ', ') AS names
+         FROM campaigns WHERE segment_id=?`,
         [req.params.id]
       )).rows[0];
 
@@ -136,7 +136,7 @@ module.exports = {
         return res.redirect(`/segments/${req.params.id}`);
       }
 
-      await db.query('DELETE FROM segments WHERE id=$1', [req.params.id]);
+      await db.query('DELETE FROM segments WHERE id=?', [req.params.id]);
       req.flash('success', 'Segment deleted');
       res.redirect('/segments');
     } catch (e) {
@@ -147,11 +147,11 @@ module.exports = {
 
   refresh: async (req, res) => {
     try {
-      const seg = (await db.query('SELECT filters, org_id FROM segments WHERE id=$1', [req.params.id])).rows[0];
+      const seg = (await db.query('SELECT filters, org_id FROM segments WHERE id=?', [req.params.id])).rows[0];
       if (!seg) return res.status(404).json({ error: 'Segment not found' });
       const count = await liveSegmentContactCount(seg);
       await db.query(
-        'UPDATE segments SET contact_count=$1, last_count_at=NOW(), updated_at=NOW() WHERE id=$2',
+        'UPDATE segments SET contact_count=?, last_count_at=NOW(), updated_at=NOW() WHERE id=?',
         [count, req.params.id],
       );
       // If called via AJAX return JSON, otherwise redirect
@@ -168,9 +168,9 @@ module.exports = {
       const filters = typeof req.body.filters === 'string' ? JSON.parse(req.body.filters || '{}') : (req.body.filters || { rules: [] });
       const built = buildFilterWhere(filters);
       const orgId = req.user?.org_id;
-      const whereSql = orgId ? `org_id=$1 AND (${offsetSqlParams(built.where, 1)})` : `(${built.where})`;
+      const whereSql = orgId ? `org_id=? AND (${offsetSqlParams(built.where, 1)})` : `(${built.where})`;
       const qParams = orgId ? [orgId, ...built.params] : built.params;
-      const count = (await db.query(`SELECT COUNT(*)::int AS count FROM contacts WHERE ${whereSql}`, qParams)).rows[0].count;
+      const count = (await db.query(`SELECT COUNT(*) AS count FROM contacts WHERE ${whereSql}`, qParams)).rows[0].count;
       res.json({ count });
     } catch (e) { res.status(500).json({ error: e.message }); }
   },
@@ -178,24 +178,23 @@ module.exports = {
   contacts: async (req, res) => {
     try {
       const { page, limit, offset } = getPagination(req, 50);
-      const seg = (await db.query('SELECT filters, org_id FROM segments WHERE id=$1', [req.params.id])).rows[0];
+      const seg = (await db.query('SELECT filters, org_id FROM segments WHERE id=?', [req.params.id])).rows[0];
       if (!seg) return res.status(404).json({ error: 'Segment not found' });
       const built = buildFilterWhere(seg.filters);
-      const whereSql = seg.org_id ? `org_id=$1 AND (${offsetSqlParams(built.where, 1)})` : `(${built.where})`;
+      const whereSql = seg.org_id ? `org_id=? AND (${offsetSqlParams(built.where, 1)})` : `(${built.where})`;
       const qParams = seg.org_id ? [seg.org_id, ...built.params] : built.params;
-      const n = qParams.length;
-      const rows = (await db.query(`SELECT * FROM contacts WHERE ${whereSql} ORDER BY created_at DESC LIMIT $${n + 1} OFFSET $${n + 2}`, [...qParams, limit, offset])).rows;
-      const total = (await db.query(`SELECT COUNT(*)::int AS count FROM contacts WHERE ${whereSql}`, qParams)).rows[0].count;
+      const rows = (await db.query(`SELECT * FROM contacts WHERE ${whereSql} ORDER BY created_at DESC LIMIT ? OFFSET ?`, [...qParams, limit, offset])).rows;
+      const total = (await db.query(`SELECT COUNT(*) AS count FROM contacts WHERE ${whereSql}`, qParams)).rows[0].count;
       res.json({ page, limit, total, rows });
     } catch (e) { res.status(500).json({ error: e.message }); }
   },
 
   exportCSV: async (req, res) => {
     try {
-      const seg = (await db.query('SELECT filters, name, org_id FROM segments WHERE id=$1', [req.params.id])).rows[0];
+      const seg = (await db.query('SELECT filters, name, org_id FROM segments WHERE id=?', [req.params.id])).rows[0];
       if (!seg) return res.status(404).send('Segment not found');
       const built = buildFilterWhere(seg.filters);
-      const whereSql = seg.org_id ? `org_id=$1 AND (${offsetSqlParams(built.where, 1)})` : `(${built.where})`;
+      const whereSql = seg.org_id ? `org_id=? AND (${offsetSqlParams(built.where, 1)})` : `(${built.where})`;
       const qParams = seg.org_id ? [seg.org_id, ...built.params] : built.params;
       const rows = (await db.query(`SELECT email, first_name, last_name, company, industry, country, status, created_at FROM contacts WHERE ${whereSql} ORDER BY created_at DESC`, qParams)).rows;
       const filename = `${(seg.name || 'segment').replace(/[^a-zA-Z0-9-_]/g, '_')}.csv`;

@@ -9,7 +9,7 @@ const MAX_LIMIT     = 200;
 
 /**
  * Full-featured contact search with:
- *  - full-text search via pg_trgm / tsvector
+ *  - full-text search via MATCH...AGAINST
  *  - facet filters (industry, country, status, tags, score range)
  *  - row-scope awareness (RBAC)
  *  - keyset pagination for pages > 100 (avoids deep OFFSET)
@@ -54,49 +54,45 @@ async function searchContacts(orgId, params, allowedFields, userId) {
   if (cached) return cached;
 
   // ---- Build WHERE clause ----
-  const conditions = ['c.org_id = $1'];
+  const conditions = ['c.org_id = ?'];
   const values     = [orgId];
-  let   idx        = 2;
 
   if (search) {
     conditions.push(
-      `(c.fts_vector @@ plainto_tsquery('english', $${idx})
-       OR c.email ILIKE $${idx + 1}
-       OR c.first_name ILIKE $${idx + 1}
-       OR c.last_name  ILIKE $${idx + 1}
-       OR c.company    ILIKE $${idx + 1})`,
+      `(MATCH(c.email, c.first_name, c.last_name, c.company) AGAINST(? IN BOOLEAN MODE)
+       OR c.email LIKE ?
+       OR c.first_name LIKE ?
+       OR c.last_name  LIKE ?
+       OR c.company    LIKE ?)`,
     );
-    values.push(search, `%${search}%`);
-    idx += 2;
+    values.push(search, `%${search}%`, `%${search}%`, `%${search}%`, `%${search}%`);
   }
-  if (industry) { conditions.push(`c.industry = $${idx}`); values.push(industry); idx++; }
-  if (country)  { conditions.push(`c.country  = $${idx}`); values.push(country);  idx++; }
-  if (status)   { conditions.push(`c.status   = $${idx}`); values.push(status);   idx++; }
-  if (tags)     {
+  if (industry) { conditions.push(`c.industry = ?`); values.push(industry); }
+  if (country)  { conditions.push(`c.country  = ?`); values.push(country);  }
+  if (status)   { conditions.push(`c.status   = ?`); values.push(status);   }
+  if (tags) {
     const tagArr = tags.split(',').map(t => t.trim()).filter(Boolean);
     if (tagArr.length) {
-      conditions.push(`c.tags && $${idx}::text[]`);
-      values.push(tagArr);
-      idx++;
+      const tagConditions = tagArr.map(() => `JSON_CONTAINS(c.tags, JSON_QUOTE(?))`);
+      conditions.push(`(${tagConditions.join(' OR ')})`);
+      values.push(...tagArr);
     }
   }
-  if (ai_score_min !== '') { conditions.push(`c.ai_score >= $${idx}`); values.push(parseFloat(ai_score_min)); idx++; }
-  if (ai_score_max !== '') { conditions.push(`c.ai_score <= $${idx}`); values.push(parseFloat(ai_score_max)); idx++; }
+  if (ai_score_min !== '') { conditions.push(`c.ai_score >= ?`); values.push(parseFloat(ai_score_min)); }
+  if (ai_score_max !== '') { conditions.push(`c.ai_score <= ?`); values.push(parseFloat(ai_score_max)); }
 
   // Apply row scope
-  const scope = await applyRowScope(userId, orgId, idx);
+  const scope = await applyRowScope(userId, orgId, values.length + 1);
   const whereStr = conditions.join(' AND ') + scope.extraWhere;
   const allValues = [...values, ...scope.extraParams];
-  idx = scope.nextIdx;
 
   // Keyset pagination for deep pages (page > 100)
   let paginationWhere = '';
-  let paginationValues = [];
+  const paginationValues = [];
   const useKeyset = pageNum > 100 && cursor_created_at && cursor_id;
   if (useKeyset) {
-    paginationWhere = ` AND (c.${safeSortCol}, c.id) ${safeOrder === 'DESC' ? '<' : '>'} ($${idx}, $${idx + 1})`;
+    paginationWhere = ` AND (c.${safeSortCol}, c.id) ${safeOrder === 'DESC' ? '<' : '>'} (?, ?)`;
     paginationValues.push(cursor_created_at, cursor_id);
-    idx += 2;
   }
 
   const finalWhere  = whereStr + paginationWhere;
@@ -119,7 +115,7 @@ async function searchContacts(orgId, params, allowedFields, userId) {
        FROM contacts c
        WHERE ${finalWhere}
        ORDER BY c.${safeSortCol} ${safeOrder}, c.id ${safeOrder}
-       LIMIT $${idx} OFFSET $${idx + 1}`,
+       LIMIT ? OFFSET ?`,
       [...finalValues, limit, offset],
     ),
   ]);
@@ -152,12 +148,11 @@ async function exportContactsStream(orgId, filters, allowedFields, res) {
   // Header row
   res.write(fields.join(',') + '\n');
 
-  const conditions = ['org_id = $1'];
+  const conditions = ['org_id = ?'];
   const values     = [orgId];
-  let   idx        = 2;
 
-  if (filters?.status)   { conditions.push(`status = $${idx}`);   values.push(filters.status);   idx++; }
-  if (filters?.industry) { conditions.push(`industry = $${idx}`); values.push(filters.industry); idx++; }
+  if (filters?.status)   { conditions.push(`status = ?`);   values.push(filters.status);   }
+  if (filters?.industry) { conditions.push(`industry = ?`); values.push(filters.industry); }
 
   const BATCH = 5000;
   let   offset = 0;
@@ -170,7 +165,7 @@ async function exportContactsStream(orgId, filters, allowedFields, res) {
          FROM contacts
          WHERE ${conditions.join(' AND ')}
          ORDER BY created_at DESC
-         LIMIT $${idx} OFFSET $${idx + 1}`,
+         LIMIT ? OFFSET ?`,
         [...values, BATCH, offset],
       );
       if (!rows.rows.length) break;

@@ -18,13 +18,12 @@ async function seedAdmin() {
 
   await db.query(
     `INSERT INTO users (name, email, password_hash, role, avatar_initials)
-     VALUES ($1, $2, $3, $4, $5)
-     ON CONFLICT (email)
-     DO UPDATE SET
-       name = EXCLUDED.name,
-       password_hash = EXCLUDED.password_hash,
-       role = EXCLUDED.role,
-       avatar_initials = EXCLUDED.avatar_initials`,
+     VALUES (?, ?, ?, ?, ?)
+     ON DUPLICATE KEY UPDATE
+       name = VALUES(name),
+       password_hash = VALUES(password_hash),
+       role = VALUES(role),
+       avatar_initials = VALUES(avatar_initials)`,
     [name, email, passwordHash, role, avatarInitials]
   );
 

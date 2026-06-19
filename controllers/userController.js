@@ -15,7 +15,7 @@ module.exports = {
               creator.name AS created_by_name
        FROM users u
        LEFT JOIN users creator ON creator.id = u.created_by
-       WHERE u.org_id = $1
+       WHERE u.org_id = ?
        ORDER BY u.created_at DESC`,
       [orgId],
     );
@@ -42,7 +42,7 @@ module.exports = {
       return res.redirect('/users/new');
     }
 
-    const existing = await db.query('SELECT id FROM users WHERE email=$1 AND org_id=$2', [email, orgId]);
+    const existing = await db.query('SELECT id FROM users WHERE email=? AND org_id=?', [email, orgId]);
     if (existing.rows.length) {
       req.flash('error', 'A user with that email already exists');
       return res.redirect('/users/new');
@@ -51,7 +51,7 @@ module.exports = {
     const hash = await bcrypt.hash(password, 12);
     await db.query(
       `INSERT INTO users (name, email, password_hash, role, org_id, created_by)
-       VALUES ($1,$2,$3,$4,$5,$6)`,
+       VALUES (?,?,?,?,?,?)`,
       [name, email, hash, role, orgId, req.user.id],
     );
     req.flash('success', `User ${email} created`);
@@ -63,7 +63,7 @@ module.exports = {
     const orgId = req.org?.id || DEFAULT_ORG;
     const user = await db.query(
       `SELECT u.*, (SELECT COUNT(*) FROM audit_log al WHERE al.user_id=u.id) AS audit_count
-       FROM users u WHERE u.id=$1 AND u.org_id=$2`,
+       FROM users u WHERE u.id=? AND u.org_id=?`,
       [req.params.id, orgId],
     );
     if (!user.rows.length) { req.flash('error', 'User not found'); return res.redirect('/users'); }
@@ -74,7 +74,7 @@ module.exports = {
   async editForm(req, res) {
     const orgId = req.org?.id || DEFAULT_ORG;
     const user = await db.query(
-      'SELECT id,name,email,role,is_active FROM users WHERE id=$1 AND org_id=$2',
+      'SELECT id,name,email,role,is_active FROM users WHERE id=? AND org_id=?',
       [req.params.id, orgId],
     );
     if (!user.rows.length) { req.flash('error', 'User not found'); return res.redirect('/users'); }
@@ -88,7 +88,7 @@ module.exports = {
     const userId = req.params.id;
 
     // Capture old values for audit
-    const old = await db.query('SELECT name, role, is_active FROM users WHERE id=$1', [userId]);
+    const old = await db.query('SELECT name, role, is_active FROM users WHERE id=?', [userId]);
     req.auditBefore = old.rows[0];
 
     const validRoles = ['superadmin','admin','editor','lead_manager','campaign_manager'];
@@ -97,7 +97,7 @@ module.exports = {
     }
 
     await db.query(
-      `UPDATE users SET name=$1, role=$2, is_active=$3 WHERE id=$4 AND org_id=$5`,
+      `UPDATE users SET name=?, role=?, is_active=? WHERE id=? AND org_id=?`,
       [name, role, is_active === 'true' || is_active === true, userId, orgId],
     );
 
@@ -118,7 +118,7 @@ module.exports = {
       req.flash('error', 'Cannot delete your own account');
       return res.redirect('/users');
     }
-    await db.query('UPDATE users SET is_active=FALSE WHERE id=$1 AND org_id=$2', [req.params.id, orgId]);
+    await db.query('UPDATE users SET is_active=FALSE WHERE id=? AND org_id=?', [req.params.id, orgId]);
     await cache.del(cache.keys(orgId).user(req.params.id));
     req.flash('success', 'User deactivated');
     res.redirect('/users');
@@ -134,7 +134,7 @@ module.exports = {
     const hash = await bcrypt.hash(new_password, 12);
     const orgId = req.org?.id || DEFAULT_ORG;
     await db.query(
-      'UPDATE users SET password_hash=$1 WHERE id=$2 AND org_id=$3',
+      'UPDATE users SET password_hash=? WHERE id=? AND org_id=?',
       [hash, req.params.id, orgId],
     );
     await cache.del(cache.keys(orgId).user(req.params.id));
@@ -149,7 +149,7 @@ module.exports = {
       `SELECT al.*, u.name AS user_name
        FROM audit_log al
        LEFT JOIN users u ON u.id = al.user_id
-       WHERE al.user_id=$1 AND al.org_id=$2
+       WHERE al.user_id=? AND al.org_id=?
        ORDER BY al.created_at DESC LIMIT 200`,
       [req.params.id, orgId],
     );

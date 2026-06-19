@@ -1,4 +1,5 @@
 'use strict';
+const { v4: uuidv4 } = require('uuid');
 const Anthropic = require('@anthropic-ai/sdk');
 const db        = require('../config/db');
 const cache     = require('../config/cache');
@@ -45,7 +46,7 @@ Return ONLY JSON (no markdown): { "score": number, "reason": string, "signals": 
   const score  = Math.max(0, Math.min(100, Number(parsed.score) || 50));
 
   await db.query(
-    `UPDATE contacts SET ai_score=$1, ai_score_reason=$2, ai_scored_at=NOW() WHERE id=$3`,
+    `UPDATE contacts SET ai_score=?, ai_score_reason=?, ai_scored_at=NOW() WHERE id=?`,
     [score, parsed.reason || '', contact.id],
   );
   return { score, reason: parsed.reason, signals: parsed.signals || [] };
@@ -64,7 +65,7 @@ Write 5 specific sentences. End with: best personalisation angle.`;
 
   const summary = await callClaude(prompt, 500);
   await db.query(
-    `UPDATE contacts SET research_summary=$1, research_done=TRUE, enriched_at=NOW() WHERE id=$2`,
+    `UPDATE contacts SET research_summary=?, research_done=TRUE, enriched_at=NOW() WHERE id=?`,
     [summary, contact.id],
   );
   return summary;
@@ -98,7 +99,7 @@ Return ONLY JSON (no markdown): { "subject": "...", "body_html": "..." }`;
 // Feature 4: AI A/B Test Generator
 // ---------------------------------------------------------------------------
 async function generateABVariants(templateId, objective) {
-  const row = await db.query('SELECT * FROM templates WHERE id=$1', [templateId]);
+  const row = await db.query('SELECT * FROM templates WHERE id=?', [templateId]);
   if (!row.rows.length) throw new Error('Template not found');
   const tpl = row.rows[0];
 
@@ -119,10 +120,12 @@ Return ONLY JSON (no markdown): {
 
   // Save as child templates
   const saveVariant = async (variant, label) => {
-    const res = await db.query(
-      `INSERT INTO templates (name, subject, body_html, parent_id, variant_label, ai_generated, org_id, created_by)
-       VALUES ($1,$2,$3,$4,$5,TRUE,$6,$7) RETURNING id`,
+    const newId = uuidv4();
+    await db.query(
+      `INSERT INTO templates (id, name, subject, body_html, parent_id, variant_label, ai_generated, org_id, created_by)
+       VALUES (?,?,?,?,?,?,TRUE,?,?)`,
       [
+        newId,
         `${tpl.name} — Variant ${label}`,
         variant.subject,
         variant.body_html,
@@ -132,7 +135,7 @@ Return ONLY JSON (no markdown): {
         tpl.created_by,
       ],
     );
-    return { id: res.rows[0].id, hypothesis: variant.hypothesis, label };
+    return { id: newId, hypothesis: variant.hypothesis, label };
   };
 
   const [a, b] = await Promise.all([
@@ -148,9 +151,9 @@ Return ONLY JSON (no markdown): {
 async function buildSegmentFromQuery(naturalLanguageQuery, orgId) {
   // Sample distinct values for context
   const [industries, countries, statuses] = await Promise.all([
-    db.query(`SELECT DISTINCT industry FROM contacts WHERE org_id=$1 AND industry IS NOT NULL LIMIT 20`, [orgId]),
-    db.query(`SELECT DISTINCT country  FROM contacts WHERE org_id=$1 AND country  IS NOT NULL LIMIT 20`, [orgId]),
-    db.query(`SELECT DISTINCT status   FROM contacts WHERE org_id=$1 LIMIT 10`, [orgId]),
+    db.query(`SELECT DISTINCT industry FROM contacts WHERE org_id=? AND industry IS NOT NULL LIMIT 20`, [orgId]),
+    db.query(`SELECT DISTINCT country  FROM contacts WHERE org_id=? AND country  IS NOT NULL LIMIT 20`, [orgId]),
+    db.query(`SELECT DISTINCT status   FROM contacts WHERE org_id=? LIMIT 10`, [orgId]),
   ]);
 
   const fieldSamples = {
@@ -174,17 +177,19 @@ Return ONLY a JSON array (no markdown):
   if (!Array.isArray(rules) || !rules.length) throw new Error('Could not parse segment filters from AI response');
 
   // Save segment
-  const res = await db.query(
-    `INSERT INTO segments (name, filters, ai_generated, ai_rationale, org_id, is_dynamic, contact_count)
-     VALUES ($1,$2,TRUE,$3,$4,TRUE,0) RETURNING id`,
+  const newId = uuidv4();
+  await db.query(
+    `INSERT INTO segments (id, name, filters, ai_generated, ai_rationale, org_id, is_dynamic, contact_count)
+     VALUES (?,?,TRUE,?,?,TRUE,0)`,
     [
+      newId,
       `AI: ${naturalLanguageQuery.slice(0, 60)}`,
       JSON.stringify({ rules, logic: 'AND' }),
       naturalLanguageQuery,
       orgId,
     ],
   );
-  return { segmentId: res.rows[0].id, rules };
+  return { segmentId: newId, rules };
 }
 
 // ---------------------------------------------------------------------------
@@ -195,7 +200,7 @@ async function analyzeCampaignPerformance(campaignId, orgId) {
   const cached = await cache.getJSON(cKey);
   if (cached) return cached;
 
-  // Fetch aggregate stats from PostgreSQL
+  // Fetch aggregate stats from MySQL
   const stats = await db.query(
     `SELECT
        cam.name, cam.emails_sent, cam.total_contacts,
@@ -206,7 +211,7 @@ async function analyzeCampaignPerformance(campaignId, orgId) {
        COUNT(DISTINCT CASE WHEN ee.event_type='booked' THEN ee.contact_id END)      AS bookings
      FROM campaigns cam
      LEFT JOIN email_events ee ON ee.campaign_id = cam.id
-     WHERE cam.id=$1 AND cam.org_id=$2
+     WHERE cam.id=? AND cam.org_id=?
      GROUP BY cam.name, cam.emails_sent, cam.total_contacts`,
     [campaignId, orgId],
   );
@@ -259,11 +264,11 @@ async function generateICPFromTopContacts(orgId) {
             COUNT(DISTINCT CASE WHEN ee.event_type='clicked' THEN ee.id END) AS clicks,
             COUNT(DISTINCT CASE WHEN ee.event_type='booked'  THEN ee.id END) AS bookings
      FROM contacts c
-     LEFT JOIN email_events ee ON ee.contact_id = c.id AND ee.org_id = $1
-     WHERE c.org_id = $1 AND c.status = 'active'
-     ORDER BY c.ai_score DESC NULLS LAST
+     LEFT JOIN email_events ee ON ee.contact_id = c.id AND ee.org_id = ?
+     WHERE c.org_id = ? AND c.status = 'active'
+     ORDER BY c.ai_score IS NULL, c.ai_score DESC
      LIMIT 50`,
-    [orgId],
+    [orgId, orgId],
   );
 
   if (!topContacts.rows.length) {
@@ -286,10 +291,10 @@ Return ONLY JSON (no markdown): {
   const result = safeJSON(text, {});
 
   if (result.icp_description) {
-    const org = await db.query('SELECT settings FROM organisations WHERE id=$1', [orgId]);
+    const org = await db.query('SELECT settings FROM organisations WHERE id=?', [orgId]);
     const current = org.rows[0]?.settings || {};
     await db.query(
-      `UPDATE organisations SET settings=$1 WHERE id=$2`,
+      `UPDATE organisations SET settings=? WHERE id=?`,
       [JSON.stringify({ ...current, icp: result }), orgId],
     );
   }
@@ -332,20 +337,22 @@ Return ONLY JSON (no markdown): {
   const parsed = safeJSON(text, null);
   if (!parsed?.subject) throw new Error('AI failed to generate template');
 
-  const res = await db.query(
-    `INSERT INTO templates (name, subject, body_html, preview_text, variables, ai_generated, org_id, created_by)
-     VALUES ($1,$2,$3,$4,$5,TRUE,$6,$7) RETURNING id`,
+  const newId = uuidv4();
+  await db.query(
+    `INSERT INTO templates (id, name, subject, body_html, preview_text, variables, ai_generated, org_id, created_by)
+     VALUES (?,?,?,?,?,?,TRUE,?,?)`,
     [
+      newId,
       parsed.name,
       parsed.subject,
       parsed.body_html,
       parsed.preview_text || '',
-      parsed.variables || [],
+      JSON.stringify(parsed.variables || []),
       orgId,
       userId,
     ],
   );
-  return { templateId: res.rows[0].id, ...parsed };
+  return { templateId: newId, ...parsed };
 }
 
 // ---------------------------------------------------------------------------

@@ -17,15 +17,15 @@ const STATUS_RANK = {
 async function tryCompleteWaCampaign(campaignId) {
   try {
     const r = await db.query(
-      `SELECT COUNT(*)::int AS pending FROM wa_campaign_contacts
-       WHERE campaign_id=$1
+      `SELECT COUNT(*) AS pending FROM wa_campaign_contacts
+       WHERE campaign_id=?
          AND status NOT IN ('sent','delivered','read','replied','failed','opted_out','invalid_number')`,
       [campaignId],
     );
-    if (r.rows[0].pending === 0) {
+    if (parseInt(r.rows[0].pending) === 0) {
       await db.query(
         `UPDATE wa_campaigns SET status='completed', completed_at=COALESCE(completed_at,NOW())
-         WHERE id=$1 AND status IN ('active','paused')`,
+         WHERE id=? AND status IN ('active','paused')`,
         [campaignId],
       );
       console.log(`[waWorker] Campaign ${campaignId} completed`);
@@ -84,7 +84,7 @@ new Worker('whatsapp', async (job) => {
     JOIN wa_campaigns cam   ON cam.id = wacc.campaign_id
     JOIN wa_templates t     ON t.id = cam.template_id
     JOIN wa_phone_numbers pn ON pn.id = cam.phone_number_id
-    WHERE wacc.id = $1
+    WHERE wacc.id = ?
   `, [campaignContactId]);
 
   if (!rows.length) return; // Orphaned job — discard
@@ -99,7 +99,7 @@ new Worker('whatsapp', async (job) => {
   }
   if (cc.quality_score === 'RED') {
     await db.query(
-      `UPDATE wa_campaign_contacts SET status='failed', failure_reason='Phone number RED quality score', failed_at=NOW() WHERE id=$1`,
+      `UPDATE wa_campaign_contacts SET status='failed', failure_reason='Phone number RED quality score', failed_at=NOW() WHERE id=?`,
       [campaignContactId],
     );
     return;
@@ -109,14 +109,14 @@ new Worker('whatsapp', async (job) => {
   }
   if (!cc.whatsapp_opted_in) {
     await db.query(
-      `UPDATE wa_campaign_contacts SET status='opted_out', failure_reason='Not opted in' WHERE id=$1`,
+      `UPDATE wa_campaign_contacts SET status='opted_out', failure_reason='Not opted in' WHERE id=?`,
       [campaignContactId],
     );
     return;
   }
   if (!WaBspService.isValidE164(cc.phone_number)) {
     await db.query(
-      `UPDATE wa_campaign_contacts SET status='invalid_number', failure_reason='Invalid E.164 number' WHERE id=$1`,
+      `UPDATE wa_campaign_contacts SET status='invalid_number', failure_reason='Invalid E.164 number' WHERE id=?`,
       [campaignContactId],
     );
     return;
@@ -125,11 +125,11 @@ new Worker('whatsapp', async (job) => {
   // 3. Daily limit resets
   const today = new Date().toISOString().slice(0, 10);
   if (cc.last_reset_date?.toISOString?.().slice(0, 10) !== today) {
-    await db.query(`UPDATE wa_campaigns SET messages_sent_today=0, last_reset_date=$1 WHERE id=$2`, [today, cc.campaign_id]);
+    await db.query(`UPDATE wa_campaigns SET messages_sent_today=0, last_reset_date=? WHERE id=?`, [today, cc.campaign_id]);
     cc.messages_sent_today = 0;
   }
   if (cc.phone_reset_date?.toISOString?.().slice(0, 10) !== today) {
-    await db.query(`UPDATE wa_phone_numbers SET messages_sent_today=0, last_reset_date=$1 WHERE id=$2`, [today, cc.phone_record_id]);
+    await db.query(`UPDATE wa_phone_numbers SET messages_sent_today=0, last_reset_date=? WHERE id=?`, [today, cc.phone_record_id]);
     cc.phone_sent_today = 0;
   }
 
@@ -197,15 +197,15 @@ new Worker('whatsapp', async (job) => {
     );
 
     await db.query(
-      `UPDATE wa_campaign_contacts SET status='sent', wa_message_id=$1, sent_at=NOW() WHERE id=$2`,
+      `UPDATE wa_campaign_contacts SET status='sent', wa_message_id=?, sent_at=NOW() WHERE id=?`,
       [result.wamid, campaignContactId],
     );
     await db.query(
-      `UPDATE wa_campaigns SET messages_sent=messages_sent+1, messages_sent_today=messages_sent_today+1 WHERE id=$1`,
+      `UPDATE wa_campaigns SET messages_sent=messages_sent+1, messages_sent_today=messages_sent_today+1 WHERE id=?`,
       [cc.campaign_id],
     );
     await db.query(
-      `UPDATE wa_phone_numbers SET messages_sent_today=messages_sent_today+1 WHERE phone_number_id=$1`,
+      `UPDATE wa_phone_numbers SET messages_sent_today=messages_sent_today+1 WHERE phone_number_id=?`,
       [cc.meta_phone_id],
     );
 
@@ -221,7 +221,7 @@ new Worker('whatsapp', async (job) => {
     if (err instanceof WaApiError) {
       if (FATAL_CODES.has(err.code)) {
         await db.query(
-          `UPDATE wa_campaign_contacts SET status='failed', failure_code=$1, failure_reason=$2, failed_at=NOW() WHERE id=$3`,
+          `UPDATE wa_campaign_contacts SET status='failed', failure_code=?, failure_reason=?, failed_at=NOW() WHERE id=?`,
           [err.code, err.message, campaignContactId],
         );
         await tryCompleteWaCampaign(cc.campaign_id);
@@ -229,10 +229,10 @@ new Worker('whatsapp', async (job) => {
       }
       if (INVALID_CODES.has(err.code)) {
         await db.query(
-          `UPDATE wa_campaign_contacts SET status='invalid_number', failure_code=$1 WHERE id=$2`,
+          `UPDATE wa_campaign_contacts SET status='invalid_number', failure_code=? WHERE id=?`,
           [err.code, campaignContactId],
         );
-        await db.query(`UPDATE contacts SET whatsapp_opted_in=false WHERE id=$1`, [cc.contact_id]);
+        await db.query(`UPDATE contacts SET whatsapp_opted_in=false WHERE id=?`, [cc.contact_id]);
         await tryCompleteWaCampaign(cc.campaign_id);
         return;
       }

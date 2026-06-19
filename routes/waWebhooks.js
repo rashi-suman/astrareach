@@ -14,7 +14,7 @@ const DEFAULT_ORG = '00000000-0000-0000-0000-000000000001';
 
 async function processWaStatus(wamid, status, timestamp, errorCode) {
   const { rows: [cc] } = await db.query(
-    `SELECT id, contact_id, campaign_id, org_id, phone_number FROM wa_campaign_contacts WHERE wa_message_id=$1`,
+    `SELECT id, contact_id, campaign_id, org_id, phone_number FROM wa_campaign_contacts WHERE wa_message_id=?`,
     [wamid],
   );
   if (!cc) return;
@@ -33,7 +33,7 @@ async function processInboundMessage(msg, phoneNumberId, orgId) {
   const fromPhone = WaBspService.normalizePhone(msg.from);
 
   const { rows: [contact] } = await db.query(
-    `SELECT id, org_id FROM contacts WHERE whatsapp_phone=$1 LIMIT 1`,
+    `SELECT id, org_id FROM contacts WHERE whatsapp_phone=? LIMIT 1`,
     [fromPhone],
   );
 
@@ -52,11 +52,10 @@ async function processInboundMessage(msg, phoneNumberId, orgId) {
 
   // Record inbound message (opens 24h session window)
   await db.query(`
-    INSERT INTO wa_inbound_messages
+    INSERT IGNORE INTO wa_inbound_messages
       (org_id, phone_number_id, from_phone, contact_id, wa_message_id,
        message_type, message_body, button_payload, session_expires_at)
-    VALUES ($1,$2,$3,$4,$5,$6,$7,$8, NOW() + INTERVAL '24 hours')
-    ON CONFLICT (wa_message_id) DO NOTHING
+    VALUES (?,?,?,?,?,?,?,?, NOW() + INTERVAL 24 HOUR)
   `, [
     contact?.org_id || orgId, phoneNumberId, fromPhone, contact?.id || null,
     msg.id, msg.type || 'text',
@@ -66,18 +65,18 @@ async function processInboundMessage(msg, phoneNumberId, orgId) {
 
   if (contact) {
     await db.query(
-      `UPDATE contacts SET whatsapp_session_active=true, whatsapp_last_reply_at=NOW() WHERE id=$1`,
+      `UPDATE contacts SET whatsapp_session_active=true, whatsapp_last_reply_at=NOW() WHERE id=?`,
       [contact.id],
     );
     await db.query(`
       UPDATE wa_campaign_contacts SET status='replied', replied_at=NOW()
-      WHERE contact_id=$1 AND status IN ('sent','delivered','read')
+      WHERE contact_id=? AND status IN ('sent','delivered','read')
       ORDER BY sent_at DESC LIMIT 1
     `, [contact.id]);
 
     // Log reply event
     const { rows: [wacc] } = await db.query(
-      `SELECT id, campaign_id, org_id FROM wa_campaign_contacts WHERE contact_id=$1 AND status='replied' ORDER BY replied_at DESC LIMIT 1`,
+      `SELECT id, campaign_id, org_id FROM wa_campaign_contacts WHERE contact_id=? AND status='replied' ORDER BY replied_at DESC LIMIT 1`,
       [contact.id],
     );
     if (wacc) {

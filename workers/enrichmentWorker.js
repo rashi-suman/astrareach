@@ -32,7 +32,7 @@ const enrichmentWorker = new Worker('enrichment', async (job) => {
         // Mark DB job completed
         if (enrichmentJobId) {
           await require('../config/db').query(
-            "UPDATE enrichment_jobs SET status='completed', completed_at=NOW() WHERE id=$1",
+            "UPDATE enrichment_jobs SET status='completed', completed_at=NOW() WHERE id=?",
             [enrichmentJobId]
           );
         }

@@ -17,14 +17,15 @@ module.exports = {
       const where = ['1=1'];
       if (req.query.search) {
         params.push(`%${req.query.search}%`);
-        where.push(`(name ILIKE $${params.length} OR subject ILIKE $${params.length})`);
+        params.push(`%${req.query.search}%`);
+        where.push(`(name LIKE ? OR subject LIKE ?)`);
       }
       const wClause = where.join(' AND ');
       const templates = (await db.query(
-        `SELECT * FROM templates WHERE ${wClause} ORDER BY created_at DESC LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+        `SELECT * FROM templates WHERE ${wClause} ORDER BY created_at DESC LIMIT ? OFFSET ?`,
         [...params, limit, offset]
       )).rows;
-      const total = (await db.query(`SELECT COUNT(*)::int AS count FROM templates WHERE ${wClause}`, params)).rows[0].count;
+      const total = (await db.query(`SELECT COUNT(*) AS count FROM templates WHERE ${wClause}`, params)).rows[0].count;
       res.render('templates/index', {
         title: 'Templates', page: 'templates', breadcrumbs: ['Templates'],
         templates, total, pageNo: page, limit, query: req.query,
@@ -43,7 +44,7 @@ module.exports = {
       const vars = extractVariables((req.body.subject || '') + ' ' + (req.body.body_html || ''));
       const includeUnsub = req.body.include_unsubscribe === 'on' || req.body.include_unsubscribe === 'true' || req.body.include_unsubscribe === '1';
       await db.query(
-        'INSERT INTO templates(name, subject, body_html, variables, preview_text, booking_url, include_unsubscribe, created_by) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',
+        'INSERT INTO templates(name, subject, body_html, variables, preview_text, booking_url, include_unsubscribe, created_by) VALUES(?,?,?,?,?,?,?,?)',
         [req.body.name, req.body.subject, req.body.body_html, vars, req.body.preview_text || null, req.body.booking_url || null, includeUnsub, req.user.id]
       );
       req.flash('success', `Template "${req.body.name}" created`);
@@ -56,7 +57,7 @@ module.exports = {
 
   detail: async (req, res) => {
     try {
-      const template = (await db.query('SELECT * FROM templates WHERE id=$1', [req.params.id])).rows[0];
+      const template = (await db.query('SELECT * FROM templates WHERE id=?', [req.params.id])).rows[0];
       if (!template) return res.status(404).send('Template not found');
       res.render('templates/detail', { title: template.name, page: 'templates', breadcrumbs: ['Templates', template.name], template });
     } catch (e) { res.status(500).send(e.message); }
@@ -64,7 +65,7 @@ module.exports = {
 
   editPage: async (req, res) => {
     try {
-      const template = (await db.query('SELECT * FROM templates WHERE id=$1', [req.params.id])).rows[0];
+      const template = (await db.query('SELECT * FROM templates WHERE id=?', [req.params.id])).rows[0];
       if (!template) return res.status(404).send('Template not found');
       res.render('templates/edit', { title: `Edit ${template.name}`, page: 'templates', breadcrumbs: ['Templates', 'Edit'], template });
     } catch (e) { res.status(500).send(e.message); }
@@ -75,7 +76,7 @@ module.exports = {
       const vars = extractVariables((req.body.subject || '') + ' ' + (req.body.body_html || ''));
       const includeUnsub = req.body.include_unsubscribe === 'on' || req.body.include_unsubscribe === 'true' || req.body.include_unsubscribe === '1';
       await db.query(
-        'UPDATE templates SET name=$1, subject=$2, body_html=$3, variables=$4, preview_text=$5, booking_url=$6, include_unsubscribe=$7, updated_at=NOW() WHERE id=$8',
+        'UPDATE templates SET name=?, subject=?, body_html=?, variables=?, preview_text=?, booking_url=?, include_unsubscribe=?, updated_at=NOW() WHERE id=?',
         [req.body.name, req.body.subject, req.body.body_html, vars, req.body.preview_text || null, req.body.booking_url || null, includeUnsub, req.params.id]
       );
       req.flash('success', 'Template updated successfully');
@@ -88,9 +89,9 @@ module.exports = {
 
   remove: async (req, res) => {
     try {
-      const inUse = (await db.query("SELECT COUNT(*)::int AS count FROM campaigns WHERE template_id=$1 AND status IN ('active','queued')", [req.params.id])).rows[0].count;
+      const inUse = (await db.query("SELECT COUNT(*) AS count FROM campaigns WHERE template_id=? AND status IN ('active','queued')", [req.params.id])).rows[0].count;
       if (inUse > 0) { req.flash('error', 'Cannot delete — template is used by an active or queued campaign'); return res.redirect(`/templates/${req.params.id}`); }
-      await db.query('DELETE FROM templates WHERE id=$1', [req.params.id]);
+      await db.query('DELETE FROM templates WHERE id=?', [req.params.id]);
       req.flash('success', 'Template deleted');
       res.redirect('/templates');
     } catch (e) {

@@ -2,7 +2,7 @@ require('dotenv').config();
 const express      = require('express');
 const path         = require('path');
 const session      = require('express-session');
-const PgStore      = require('connect-pg-simple')(session);
+const MySQLStore   = require('express-mysql-session')(session);
 const methodOverride = require('method-override');
 const passport     = require('./config/passport');
 const flash        = require('express-flash');
@@ -33,11 +33,10 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // Session
 app.use(session({
-  store: new PgStore({
-    pool: db.pool,
-    tableName: 'session',
-    createTableIfMissing: true,
-  }),
+  store: new MySQLStore({
+    createDatabaseTable: true,
+    schema: { tableName: 'session', columnNames: { session_id: 'sid', expires: 'expire', data: 'sess' } },
+  }, db.pool),
   secret:            process.env.SESSION_SECRET || 'change-me-in-production',
   resave:            false,
   saveUninitialized: false,

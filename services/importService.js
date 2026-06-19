@@ -170,10 +170,10 @@ function buildMappedRow(raw, mapping, allowedCustomFields) {
 
 /**
  * Read ALL rows from the file into memory first, validate & map them, then
- * write everything inside a single PostgreSQL transaction.
+ * write everything inside a single MySQL transaction.
  *
  * If the process crashes at any point before the COMMIT the transaction is
- * automatically rolled back by Postgres — zero rows land in the DB.
+ * automatically rolled back by MySQL — zero rows land in the DB.
  */
 async function importContacts(filePath, fileType, mapping, batchId, userId, opts = {}) {
   const source            = opts.source || 'import';
@@ -239,12 +239,12 @@ async function importContacts(filePath, fileType, mapping, batchId, userId, opts
   // ── Step 3: write EVERYTHING inside one transaction ────────────────────────
   const client = await db.pool.connect();            // grab a dedicated connection
   try {
-    await client.query('BEGIN');
+    await client.query('START TRANSACTION');
 
     // Mark batch as processing inside the same transaction so a rollback also
     // undoes the batch row (if we created it outside we leave it orphaned).
     await client.query(
-      'UPDATE import_batches SET status=$1, total_rows=$2 WHERE id=$3',
+      'UPDATE import_batches SET status=?, total_rows=? WHERE id=?',
       ['processing', stats.total, batchId],
     );
 
@@ -259,7 +259,7 @@ async function importContacts(filePath, fileType, mapping, batchId, userId, opts
     }
 
     // Accurate duplicate count = valid rows that were neither inserted nor errored
-    // (i.e. silently skipped by ON CONFLICT DO NOTHING — intra-file or pre-existing)
+    // (i.e. silently skipped by INSERT IGNORE for intra-file or pre-existing dupes)
     stats.duplicates = validRows.length - stats.imported - stats.errors;
     if (stats.duplicates < 0) stats.duplicates = 0;
 
@@ -271,9 +271,9 @@ async function importContacts(filePath, fileType, mapping, batchId, userId, opts
 
     await client.query(
       `UPDATE import_batches
-         SET status=$1, total_rows=$2, imported_rows=$3,
-             duplicate_rows=$4, error_rows=$5, skipped_rows=$6, completed_at=NOW()
-       WHERE id=$7`,
+         SET status=?, total_rows=?, imported_rows=?,
+             duplicate_rows=?, error_rows=?, skipped_rows=?, completed_at=NOW()
+       WHERE id=?`,
       [stats.status, stats.total, stats.imported, stats.duplicates, stats.errors, stats.skipped_invalid_email, batchId],
     );
 
@@ -297,16 +297,16 @@ async function importContacts(filePath, fileType, mapping, batchId, userId, opts
 const COLS = 'email,first_name,last_name,company,job_title,phone,website,industry,city,country,linkedin_url,revenue_range,employee_count,custom_fields,source,import_batch_id,status,created_at,updated_at';
 
 function buildOnConflict(strategy) {
-  if (strategy === 'skip') return 'ON CONFLICT (email) DO NOTHING';
-  return `ON CONFLICT (email) DO UPDATE SET
-    first_name=EXCLUDED.first_name, last_name=EXCLUDED.last_name,
-    company=EXCLUDED.company, job_title=EXCLUDED.job_title,
-    phone=EXCLUDED.phone, website=EXCLUDED.website,
-    industry=EXCLUDED.industry, city=EXCLUDED.city,
-    country=EXCLUDED.country, linkedin_url=EXCLUDED.linkedin_url,
-    revenue_range=EXCLUDED.revenue_range, employee_count=EXCLUDED.employee_count,
-    custom_fields=EXCLUDED.custom_fields,
-    source=EXCLUDED.source, import_batch_id=EXCLUDED.import_batch_id,
+  if (strategy === 'skip') return '';   // handled via INSERT IGNORE at call site
+  return `ON DUPLICATE KEY UPDATE
+    first_name=VALUES(first_name), last_name=VALUES(last_name),
+    company=VALUES(company), job_title=VALUES(job_title),
+    phone=VALUES(phone), website=VALUES(website),
+    industry=VALUES(industry), city=VALUES(city),
+    country=VALUES(country), linkedin_url=VALUES(linkedin_url),
+    revenue_range=VALUES(revenue_range), employee_count=VALUES(employee_count),
+    custom_fields=VALUES(custom_fields),
+    source=VALUES(source), import_batch_id=VALUES(import_batch_id),
     updated_at=NOW()`;
 }
 
@@ -325,25 +325,23 @@ async function _insertChunk(client, rows, mapping, batchId, source, stats, dupli
   if (!rows.length) return;
 
   const onConflict = buildOnConflict(duplicateStrategy);
+  const insertKeyword = duplicateStrategy === 'skip' ? 'INSERT IGNORE' : 'INSERT';
 
   // ── Try the whole chunk as a single INSERT first (fast path) ──────────────
   const values = [], placeholders = [];
-  rows.forEach((r, i) => {
-    const b = i * 17;
+  rows.forEach((r) => {
     values.push(...rowValues(r, source, batchId));
-    placeholders.push(
-      `($${b+1},$${b+2},$${b+3},$${b+4},$${b+5},$${b+6},$${b+7},$${b+8},$${b+9},$${b+10},$${b+11},$${b+12},$${b+13},$${b+14}::jsonb,$${b+15},$${b+16},$${b+17},NOW(),NOW())`
-    );
+    placeholders.push('(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW(),NOW())');
   });
 
   try {
     await client.query(`SAVEPOINT sp_chunk`);
     const result = await client.query(
-      `INSERT INTO contacts (${COLS}) VALUES ${placeholders.join(',')} ${onConflict}`,
+      `${insertKeyword} INTO contacts (${COLS}) VALUES ${placeholders.join(',')} ${onConflict}`,
       values,
     );
     await client.query(`RELEASE SAVEPOINT sp_chunk`);
-    // rowCount = actual rows inserted (excludes DO NOTHING skips for intra-file dupes)
+    // rowCount = actual rows inserted (excludes INSERT IGNORE skips for intra-file dupes)
     stats.imported += result.rowCount;
     return;
   } catch (_) {
@@ -357,11 +355,11 @@ async function _insertChunk(client, rows, mapping, batchId, source, stats, dupli
     try {
       await client.query(`SAVEPOINT sp_row`);
       const res = await client.query(
-        `INSERT INTO contacts (${COLS}) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::jsonb,$15,$16,$17,NOW(),NOW()) ${onConflict}`,
+        `${insertKeyword} INTO contacts (${COLS}) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,NOW(),NOW()) ${onConflict}`,
         rowValues(r, source, batchId),
       );
       await client.query(`RELEASE SAVEPOINT sp_row`);
-      stats.imported += res.rowCount; // 1 if inserted, 0 if DO NOTHING skipped
+      stats.imported += res.rowCount; // 1 if inserted, 0 if INSERT IGNORE skipped
     } catch (rowErr) {
       await client.query(`ROLLBACK TO SAVEPOINT sp_row`);
       await client.query(`RELEASE SAVEPOINT sp_row`);
@@ -375,11 +373,11 @@ async function _finaliseBatch(batchId, stats) {
     const errJson = stats.last_error ? JSON.stringify({ error: stats.last_error }) : null;
     await db.query(
       `UPDATE import_batches
-         SET status=$1, total_rows=$2, imported_rows=$3,
-             duplicate_rows=$4, error_rows=$5, skipped_rows=$6, completed_at=NOW(),
-             error_log=$8::jsonb
-       WHERE id=$7`,
-      [stats.status, stats.total, stats.imported, stats.duplicates, stats.errors, stats.skipped_invalid_email || 0, batchId, errJson],
+         SET status=?, total_rows=?, imported_rows=?,
+             duplicate_rows=?, error_rows=?, skipped_rows=?, completed_at=NOW(),
+             error_log=?
+       WHERE id=?`,
+      [stats.status, stats.total, stats.imported, stats.duplicates, stats.errors, stats.skipped_invalid_email || 0, errJson, batchId],
     );
   } catch (_) {}
 }
@@ -396,12 +394,12 @@ async function cleanupOrphanedImports() {
     const orphans = await db.query(
       `SELECT id FROM import_batches
         WHERE status = 'processing'
-          AND created_at < NOW() - INTERVAL '10 minutes'`,
+          AND created_at < NOW() - INTERVAL 10 MINUTE`,
     );
     for (const { id } of orphans.rows) {
-      await db.query('DELETE FROM contacts WHERE import_batch_id = $1', [id]);
+      await db.query('DELETE FROM contacts WHERE import_batch_id = ?', [id]);
       await db.query(
-        `UPDATE import_batches SET status='failed', error_log='{"error":"Server restarted during import — rolled back"}'::jsonb WHERE id=$1`,
+        `UPDATE import_batches SET status='failed', error_log='{"error":"Server restarted during import — rolled back"}' WHERE id=?`,
         [id],
       );
       console.log(`[importService] cleaned up orphaned batch ${id}`);

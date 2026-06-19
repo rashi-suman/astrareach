@@ -2,6 +2,7 @@
 
 const Anthropic = require('@anthropic-ai/sdk');
 const db = require('../config/db');
+const { v4: uuidv4 } = require('uuid');
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const CONFIDENCE_THRESHOLD = parseInt(process.env.ENRICHMENT_CONFIDENCE_THRESHOLD || '70', 10);
@@ -241,7 +242,7 @@ function applyConfidenceFilter(rawResults) {
       data.value = r;
     }
 
-    // Normalize the value to match the expected PostgreSQL type (handles all edge cases)
+    // Normalize the value to match the expected MySQL type (handles all edge cases)
     data.value = normalizeFieldValue(field, data.value);
     if (data.value === null || data.value === undefined) {
       discarded.push({ field, reason: 'failed_normalization' });
@@ -268,14 +269,14 @@ function applyConfidenceFilter(rawResults) {
   return { accepted, fieldConfidence, fieldSources, discarded };
 }
 
-// Fields that must be stored as PostgreSQL TEXT[] arrays
+// Fields that must be stored as JSON arrays in MySQL
 const PG_ARRAY_FIELDS = new Set([
   'company_tech_stack', 'company_investors',
   'person_skills', 'person_past_companies', 'person_languages', 'person_publications',
   'signal_hiring_roles', 'signal_tech_adoption', 'signal_pain_keywords',
 ]);
 
-// Normalize a single field value to match its expected PostgreSQL type
+// Normalize a single field value to match its expected MySQL type
 function normalizeFieldValue(field, value) {
   if (value === null || value === undefined) return null;
 
@@ -330,7 +331,7 @@ async function saveEnrichment(contactId, orgId, accepted, fieldConfidence, field
       `UPDATE contact_enrichments SET enrichment_status='partial',
         error_message='No fields met confidence threshold',
         enrichment_completed_at=NOW(), updated_at=NOW()
-       WHERE contact_id=$1`,
+       WHERE contact_id=?`,
       [contactId]
     );
     return;
@@ -351,40 +352,40 @@ async function saveEnrichment(contactId, orgId, accepted, fieldConfidence, field
       `UPDATE contact_enrichments SET enrichment_status='partial',
         error_message='All fields failed normalization',
         enrichment_completed_at=NOW(), updated_at=NOW()
-       WHERE contact_id=$1`,
+       WHERE contact_id=?`,
       [contactId]
     );
     return;
   }
 
+  // For array fields, serialize to JSON string for MySQL JSON columns
   const insertCols  = ['contact_id', 'org_id', ...validFields, 'field_confidence', 'field_sources', 'enrichment_status', 'enrichment_completed_at', 'tokens_used'];
-  // Use ::text[] cast for array fields in the INSERT placeholders
-  const insertPlaceholders = insertCols.map((col, i) => {
-    if (PG_ARRAY_FIELDS.has(col)) return `$${i + 1}::text[]`;
-    return `$${i + 1}`;
-  });
-  allValues.push(...validFields.map(f => accepted[f]));
+  const insertPlaceholders = insertCols.map(() => '?');
+  allValues.push(...validFields.map(f => {
+    const v = accepted[f];
+    return (PG_ARRAY_FIELDS.has(f) && Array.isArray(v)) ? JSON.stringify(v) : v;
+  }));
   allValues.push(JSON.stringify(fieldConfidence));
   allValues.push(JSON.stringify(fieldSources));
   allValues.push('completed');
   allValues.push(new Date());
   allValues.push(tokensUsed || null);
 
-  // ON CONFLICT: update every enriched field + metadata
+  // ON DUPLICATE KEY UPDATE: update every enriched field + metadata
   const updateClauses = [
-    ...validFields.map((f, i) => PG_ARRAY_FIELDS.has(f) ? `${f} = $${i + 3}::text[]` : `${f} = $${i + 3}`),
-    `field_confidence = $${3 + validFields.length}`,
-    `field_sources = $${4 + validFields.length}`,
+    ...validFields.map(f => `${f} = VALUES(${f})`),
+    `field_confidence = VALUES(field_confidence)`,
+    `field_sources = VALUES(field_sources)`,
     `enrichment_status = 'completed'`,
     `enrichment_completed_at = NOW()`,
-    `tokens_used = $${7 + validFields.length}`,
+    `tokens_used = VALUES(tokens_used)`,
     `updated_at = NOW()`,
   ];
 
   const insertQuery = `
     INSERT INTO contact_enrichments (${insertCols.join(', ')})
     VALUES (${insertPlaceholders.join(', ')})
-    ON CONFLICT (contact_id) DO UPDATE SET
+    ON DUPLICATE KEY UPDATE
       ${updateClauses.join(',\n      ')}
   `;
 
@@ -425,7 +426,7 @@ async function saveEnrichment(contactId, orgId, accepted, fieldConfidence, field
   }
 
   // Back-fill matching base contact fields if they are currently empty
-  const contact = (await db.query('SELECT * FROM contacts WHERE id=$1', [contactId])).rows[0];
+  const contact = (await db.query('SELECT * FROM contacts WHERE id=?', [contactId])).rows[0];
   if (!contact) return;
 
   const contactUpdates = {};
@@ -445,15 +446,15 @@ async function saveEnrichment(contactId, orgId, accepted, fieldConfidence, field
   }
 
   if (Object.keys(contactUpdates).length > 0) {
-    const setCols = Object.keys(contactUpdates).map((k, i) => `${k}=$${i + 2}`).join(', ');
+    const setCols = Object.keys(contactUpdates).map(k => `${k}=?`).join(', ');
     await db.query(
-      `UPDATE contacts SET ${setCols}, updated_at=NOW() WHERE id=$1`,
-      [contactId, ...Object.values(contactUpdates)]
+      `UPDATE contacts SET ${setCols}, updated_at=NOW() WHERE id=?`,
+      [...Object.values(contactUpdates), contactId]
     );
   }
 
   await db.query(
-    `UPDATE contacts SET research_done=true, enriched_at=NOW() WHERE id=$1`,
+    `UPDATE contacts SET research_done=true, enriched_at=NOW() WHERE id=?`,
     [contactId]
   );
 }
@@ -463,11 +464,11 @@ async function enrichContact(contactId, orgId, enrichmentJobId) {
   // Ensure enrichment row exists
   await db.query(`
     INSERT INTO contact_enrichments (contact_id, org_id, enrichment_status)
-    VALUES ($1, $2, 'running')
-    ON CONFLICT (contact_id) DO UPDATE SET enrichment_status='running', enrichment_started_at=NOW(), updated_at=NOW()
+    VALUES (?, ?, 'running')
+    ON DUPLICATE KEY UPDATE enrichment_status='running', enrichment_started_at=NOW(), updated_at=NOW()
   `, [contactId, orgId]);
 
-  const contactRow = (await db.query('SELECT * FROM contacts WHERE id=$1', [contactId])).rows[0];
+  const contactRow = (await db.query('SELECT * FROM contacts WHERE id=?', [contactId])).rows[0];
   if (!contactRow) throw new Error(`Contact ${contactId} not found`);
 
   let tokensUsed = 0;
@@ -480,17 +481,17 @@ async function enrichContact(contactId, orgId, enrichmentJobId) {
     await saveEnrichment(contactId, orgId, accepted, fieldConfidence, fieldSources, tokensUsed);
 
     if (enrichmentJobId) {
-      await db.query('UPDATE enrichment_jobs SET completed=completed+1 WHERE id=$1', [enrichmentJobId]);
+      await db.query('UPDATE enrichment_jobs SET completed=completed+1 WHERE id=?', [enrichmentJobId]);
     }
 
     return { accepted: Object.keys(accepted).length, discarded: discarded.length };
   } catch (err) {
     await db.query(`
-      UPDATE contact_enrichments SET enrichment_status='failed', error_message=$2, enrichment_completed_at=NOW(), updated_at=NOW()
-      WHERE contact_id=$1
-    `, [contactId, err.message.slice(0, 500)]);
+      UPDATE contact_enrichments SET enrichment_status='failed', error_message=?, enrichment_completed_at=NOW(), updated_at=NOW()
+      WHERE contact_id=?
+    `, [err.message.slice(0, 500), contactId]);
     if (enrichmentJobId) {
-      await db.query('UPDATE enrichment_jobs SET failed=failed+1 WHERE id=$1', [enrichmentJobId]);
+      await db.query('UPDATE enrichment_jobs SET failed=failed+1 WHERE id=?', [enrichmentJobId]);
     }
     throw err;
   }

@@ -28,9 +28,9 @@ async function enqueuePendingContacts(campaignId, batchSize) {
      JOIN contacts  c   ON c.id   = cc.contact_id
      JOIN campaigns cam ON cam.id = cc.campaign_id
      LEFT JOIN templates t ON t.id = cam.template_id
-     WHERE cc.campaign_id=$1 AND cc.status='pending'
+     WHERE cc.campaign_id=? AND cc.status='pending'
      ORDER BY cc.created_at
-     LIMIT $2`,
+     LIMIT ?`,
     [campaignId, batchSize],
   );
 
@@ -57,7 +57,7 @@ async function enqueuePendingContacts(campaignId, batchSize) {
     });
 
     await db.query(
-      `UPDATE campaign_contacts SET status='queued' WHERE id=$1 AND status='pending'`,
+      `UPDATE campaign_contacts SET status='queued' WHERE id=? AND status='pending'`,
       [row.cc_id],
     );
   }
@@ -69,16 +69,16 @@ async function enqueuePendingContacts(campaignId, batchSize) {
 async function refreshSegmentCount(segmentId) {
   try {
     const { buildFilterWhere, offsetSqlParams } = require('../utils/segmentQueryBuilder');
-    const seg = await db.query('SELECT filters, org_id FROM segments WHERE id=$1', [segmentId]);
+    const seg = await db.query('SELECT filters, org_id FROM segments WHERE id=?', [segmentId]);
     if (!seg.rows.length) return;
     const { where, params } = buildFilterWhere(seg.rows[0].filters);
     const whereFrag = offsetSqlParams(where, 1);
     const cnt = await db.query(
-      `SELECT COUNT(*) FROM contacts WHERE org_id=$1 AND (${whereFrag})`,
+      `SELECT COUNT(*) AS count FROM contacts WHERE org_id=? AND (${whereFrag})`,
       [seg.rows[0].org_id, ...params],
     );
     await db.query(
-      `UPDATE segments SET contact_count=$1, last_count_at=NOW() WHERE id=$2`,
+      `UPDATE segments SET contact_count=?, last_count_at=NOW() WHERE id=?`,
       [parseInt(cnt.rows[0].count, 10), segmentId],
     );
   } catch (err) {
@@ -95,11 +95,11 @@ async function checkProviderHealth() {
     try {
       const res = await db.query(
         `SELECT
-           COUNT(*) FILTER (WHERE event_type='bounced') AS bounces,
-           COUNT(*) FILTER (WHERE event_type='sent')    AS sent
+           SUM(CASE WHEN event_type='bounced' THEN 1 ELSE 0 END) AS bounces,
+           SUM(CASE WHEN event_type='sent'    THEN 1 ELSE 0 END) AS sent
          FROM email_events
-         WHERE metadata->>'provider' = $1
-           AND created_at >= NOW() - INTERVAL '1 hour'`,
+         WHERE JSON_UNQUOTE(JSON_EXTRACT(metadata, '$.provider')) = ?
+           AND created_at >= NOW() - INTERVAL 1 HOUR`,
         [provider],
       );
       const { bounces, sent } = res.rows[0];
@@ -126,10 +126,13 @@ function startScheduler() {
   // Every minute: activate scheduled email campaigns + enqueue at send window
   cron.schedule('* * * * *', async () => {
     try {
-      const activated = await db.query(
+      await db.query(
         `UPDATE campaigns SET status = 'active', started_at = COALESCE(started_at, NOW())
-         WHERE status = 'scheduled' AND scheduled_start_at IS NOT NULL AND scheduled_start_at <= NOW()
-         RETURNING id, daily_limit`,
+         WHERE status = 'scheduled' AND scheduled_start_at IS NOT NULL AND scheduled_start_at <= NOW()`,
+      );
+      const activated = await db.query(
+        `SELECT id, daily_limit FROM campaigns
+         WHERE status = 'active' AND started_at >= NOW() - INTERVAL 1 MINUTE`,
       );
       for (const row of activated.rows) {
         await enqueuePendingContacts(row.id, Math.max(1, row.daily_limit || 50));
@@ -174,7 +177,7 @@ function startScheduler() {
     try {
       const segs = await db.query(
         `SELECT id FROM segments WHERE is_dynamic=TRUE
-         AND (last_count_at IS NULL OR last_count_at < NOW() - INTERVAL '10 minutes')`,
+         AND (last_count_at IS NULL OR last_count_at < NOW() - INTERVAL 10 MINUTE)`,
       );
       for (const s of segs.rows) {
         await refreshSegmentCount(s.id);
@@ -214,7 +217,7 @@ function startScheduler() {
     await checkProviderHealth();
   });
 
-  // Every 500ms: flush audit buffer from Redis → PostgreSQL
+  // Every 500ms: flush audit buffer from Redis → MySQL
   setInterval(flushAuditBuffer, 500);
 
   console.log('[scheduler] All cron jobs started');

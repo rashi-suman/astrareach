@@ -11,8 +11,8 @@ module.exports = async function sidebarLocals(req, res, next) {
   if (!req.user) return next();
   try {
     const [cRes, aRes] = await Promise.all([
-      db.query('SELECT COUNT(*)::int AS count FROM contacts'),
-      db.query("SELECT COUNT(*)::int AS count FROM campaigns WHERE status='active'"),
+      db.query('SELECT COUNT(*) AS count FROM contacts'),
+      db.query("SELECT COUNT(*) AS count FROM campaigns WHERE status='active'"),
     ]);
     res.locals.totalContacts = cRes.rows[0].count;
     res.locals.activeCampaigns = aRes.rows[0].count;

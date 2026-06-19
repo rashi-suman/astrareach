@@ -14,10 +14,10 @@ async function checkAllQualityScores() {
   let phones;
   try {
     ({ rows: phones } = await db.query(
-      `SELECT * FROM wa_phone_numbers WHERE is_active=true AND bsp IN ('meta_cloud','360dialog')`,
+      `SELECT * FROM wa_phone_numbers WHERE is_active=TRUE AND bsp IN ('meta_cloud','360dialog')`,
     ));
   } catch (e) {
-    if (e.code === '42P01' || /wa_phone_numbers/.test(e.message)) return;
+    if (e.code === 'ER_NO_SUCH_TABLE' || /wa_phone_numbers/.test(e.message)) return;
     throw e;
   }
 
@@ -28,17 +28,17 @@ async function checkAllQualityScores() {
       const prev  = phone.quality_score;
 
       await db.query(
-        `UPDATE wa_phone_numbers SET quality_score=$1, quality_updated_at=NOW() WHERE id=$2`,
+        `UPDATE wa_phone_numbers SET quality_score=?, quality_updated_at=NOW() WHERE id=?`,
         [score, phone.id],
       );
 
       if (score === 'YELLOW' && !phone.is_paused) {
         await db.query(
-          `UPDATE wa_phone_numbers SET is_paused=true, pause_reason='Quality score YELLOW' WHERE id=$1`,
+          `UPDATE wa_phone_numbers SET is_paused=TRUE, pause_reason='Quality score YELLOW' WHERE id=?`,
           [phone.id],
         );
         await db.query(
-          `UPDATE wa_campaigns SET status='paused' WHERE phone_number_id=$1 AND status='active'`,
+          `UPDATE wa_campaigns SET status='paused' WHERE phone_number_id=? AND status='active'`,
           [phone.id],
         );
         await sendAdminAlert(phone.org_id, 'YELLOW_QUALITY',
@@ -47,11 +47,11 @@ async function checkAllQualityScores() {
 
       if (score === 'RED') {
         await db.query(
-          `UPDATE wa_phone_numbers SET is_paused=true, pause_reason='Quality score RED — manual review required' WHERE id=$1`,
+          `UPDATE wa_phone_numbers SET is_paused=TRUE, pause_reason='Quality score RED — manual review required' WHERE id=?`,
           [phone.id],
         );
         await db.query(
-          `UPDATE wa_campaigns SET status='stopped' WHERE phone_number_id=$1 AND status IN ('active','paused')`,
+          `UPDATE wa_campaigns SET status='stopped' WHERE phone_number_id=? AND status IN ('active','paused')`,
           [phone.id],
         );
         await sendAdminAlert(phone.org_id, 'RED_QUALITY',
@@ -61,7 +61,7 @@ async function checkAllQualityScores() {
       if (score === 'GREEN' && prev === 'YELLOW' && phone.is_paused &&
           phone.pause_reason === 'Quality score YELLOW') {
         await db.query(
-          `UPDATE wa_phone_numbers SET is_paused=false, pause_reason=null WHERE id=$1`,
+          `UPDATE wa_phone_numbers SET is_paused=FALSE, pause_reason=NULL WHERE id=?`,
           [phone.id],
         );
         await sendAdminAlert(phone.org_id, 'GREEN_QUALITY',
@@ -78,13 +78,13 @@ async function resetDailyCounts() {
   try {
     const today = new Date().toISOString().slice(0, 10);
     try {
-      await db.query(`UPDATE wa_phone_numbers SET messages_sent_today=0, last_reset_date=$1`, [today]);
+      await db.query(`UPDATE wa_phone_numbers SET messages_sent_today=0, last_reset_date=?`, [today]);
       await db.query(
-        `UPDATE wa_campaigns SET messages_sent_today=0, last_reset_date=$1 WHERE status IN ('active','paused')`,
+        `UPDATE wa_campaigns SET messages_sent_today=0, last_reset_date=? WHERE status IN ('active','paused')`,
         [today],
       );
     } catch (e) {
-      if (e.code !== '42P01' && !/wa_phone_numbers|wa_campaigns/.test(e.message)) throw e;
+      if (e.code !== 'ER_NO_SUCH_TABLE' && !/wa_phone_numbers|wa_campaigns/.test(e.message)) throw e;
     }
     // Clear per-phone queue position counters
     const keys = await redis.keys('waqpos:*');

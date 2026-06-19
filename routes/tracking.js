@@ -6,6 +6,7 @@
 const express  = require('express');
 const router   = express.Router();
 const crypto   = require('crypto');
+const { v4: uuidv4 } = require('uuid');
 const db       = require('../config/db');
 const { eventsQueue } = require('../services/queueService');
 const { ONE_PX_GIF }  = require('../services/trackingService');
@@ -61,7 +62,7 @@ function isBot(userAgent) {
 // Resolve ccId → campaign_contact row
 async function resolveCC(ccId) {
   const { rows } = await db.query(
-    'SELECT campaign_id, contact_id, org_id FROM campaign_contacts WHERE id=$1',
+    'SELECT campaign_id, contact_id, org_id FROM campaign_contacts WHERE id=?',
     [ccId],
   );
   return rows[0] || null;
@@ -126,13 +127,14 @@ router.get('/u/:ccId', async (req, res) => {
   try {
     const cc = await resolveCC(req.params.ccId);
     if (cc) {
+      const newEventId = uuidv4();
       await Promise.all([
-        db.query(`UPDATE contacts SET status='unsubscribed' WHERE id=$1`, [cc.contact_id]),
-        db.query(`UPDATE campaign_contacts SET status='unsubscribed', last_event_at=NOW() WHERE id=$1`, [req.params.ccId]),
+        db.query(`UPDATE contacts SET status='unsubscribed' WHERE id=?`, [cc.contact_id]),
+        db.query(`UPDATE campaign_contacts SET status='unsubscribed', last_event_at=NOW() WHERE id=?`, [req.params.ccId]),
         db.query(
           `INSERT INTO email_events (id, campaign_contact_id, campaign_id, contact_id, org_id, event_type, created_at)
-           VALUES (gen_random_uuid(),$1,$2,$3,$4,'unsubscribed',NOW())`,
-          [req.params.ccId, cc.campaign_id, cc.contact_id, cc.org_id || DEFAULT_ORG],
+           VALUES (?,?,?,?,?,'unsubscribed',NOW())`,
+          [newEventId, req.params.ccId, cc.campaign_id, cc.contact_id, cc.org_id || DEFAULT_ORG],
         ),
       ]);
     }
