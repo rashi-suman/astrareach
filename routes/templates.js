@@ -50,7 +50,7 @@ router.get('/:id/variants', requirePermission('templates.view'), async (req, res
   try {
     const rows = await require('../config/db').query(
       `SELECT id, name, variant_label, subject, ai_generated, created_at
-       FROM templates WHERE parent_id=$1 ORDER BY variant_label`,
+       FROM templates WHERE parent_id=? ORDER BY variant_label`,
       [req.params.id],
     );
     res.json({ variants: rows.rows });

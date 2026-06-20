@@ -78,8 +78,8 @@ async function enrichBulk(req, res) {
 
     // Validate ownership
     const owned = (await db.query(
-      'SELECT id FROM contacts WHERE id IN (?) AND org_id=?',
-      [contact_ids, orgId]
+      `SELECT id FROM contacts WHERE id IN (${contact_ids.map(() => '?').join(',')}) AND org_id=?`,
+      [...contact_ids, orgId]
     )).rows.map(r => r.id);
 
     if (!owned.length) return res.status(400).json({ error: 'No valid contacts found' });
@@ -88,8 +88,8 @@ async function enrichBulk(req, res) {
     let targets = owned;
     if (!force) {
       const done = (await db.query(
-        "SELECT contact_id FROM contact_enrichments WHERE contact_id IN (?) AND enrichment_status='completed'",
-        [owned]
+        `SELECT contact_id FROM contact_enrichments WHERE contact_id IN (${owned.map(() => '?').join(',')}) AND enrichment_status='completed'`,
+        owned
       )).rows.map(r => r.contact_id);
       targets = owned.filter(id => !done.includes(id));
     }

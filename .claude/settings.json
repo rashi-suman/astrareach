@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(npx sequelize-cli *)",
+      "Bash(mysql -u root -pdb123 -e \"USE astra; SHOW TABLES;\")",
+      "Bash(SEED_ADMIN_EMAIL=admin@example.com SEED_ADMIN_PASSWORD=admin123 SEED_ADMIN_NAME=\"Admin\" node scripts/seedAdmin.js)",
+      "Bash(grep -rn '\\\\$[0-9]\\\\+\\\\|RETURNING\\\\|ON CONFLICT\\\\|ILIKE\\\\|::text\\\\|::int\\\\|::uuid\\\\| -> \\\\|->> \\\\|@>\\\\|BEGIN\\\\b' /Users/rashisuman/Projects/astrareach --include=\"*.js\" --exclude-dir=node_modules --exclude-dir=scripts)",
+      "Bash(grep -v \"//.*\\\\$\\\\|revenue_range\\\\|MySQL has no\\\\|comment\\\\|// \")"
+    ]
+  }
+}

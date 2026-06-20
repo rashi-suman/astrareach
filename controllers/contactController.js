@@ -19,8 +19,8 @@ function buildContactWhere(reqOrFilters) {
 
   const statuses = parseMulti(f.status);
   if (statuses.length) {
-    params.push(statuses);
-    clauses.push(`status IN (?)`);
+    params.push(...statuses);
+    clauses.push(`status IN (${statuses.map(() => '?').join(',')})`);
   } else {
     clauses.push(`status != 'invalid'`);
   }
@@ -32,10 +32,10 @@ function buildContactWhere(reqOrFilters) {
   }
 
   const industries = parseMulti(f.industry);
-  if (industries.length) { params.push(industries); clauses.push(`industry IN (?)`); }
+  if (industries.length) { params.push(...industries); clauses.push(`industry IN (${industries.map(() => '?').join(',')})`); }
 
   const countries = parseMulti(f.country);
-  if (countries.length) { params.push(countries); clauses.push(`country IN (?)`); }
+  if (countries.length) { params.push(...countries); clauses.push(`country IN (${countries.map(() => '?').join(',')})`); }
 
   if (f.tags) {
     const tagList = typeof f.tags === 'string' ? f.tags.split(',') : f.tags;
@@ -46,7 +46,7 @@ function buildContactWhere(reqOrFilters) {
   }
 
   const sources = parseMulti(f.source);
-  if (sources.length) { params.push(sources); clauses.push(`source IN (?)`); }
+  if (sources.length) { params.push(...sources); clauses.push(`source IN (${sources.map(() => '?').join(',')})`); }
 
   return { where: clauses.join(' AND '), params };
 }
@@ -409,7 +409,7 @@ module.exports = {
       }
       const ids = Array.isArray(req.body.ids) ? req.body.ids : [];
       if (!ids.length) return res.status(400).json({ error: 'ids required' });
-      await db.query("UPDATE contacts SET status='invalid', updated_at=NOW() WHERE id IN (?)", [ids]);
+      await db.query(`UPDATE contacts SET status='invalid', updated_at=NOW() WHERE id IN (${ids.map(() => '?').join(',')})`, ids);
       res.json({ ok: true });
     } catch (e) { res.status(500).json({ error: e.message }); }
   },
@@ -433,8 +433,8 @@ module.exports = {
       const ids = Array.isArray(req.body.ids) ? req.body.ids : [];
       if (!ids.length || !tag) return res.status(400).json({ error: 'ids and tag required' });
       await db.query(
-        'UPDATE contacts SET tags = JSON_ARRAY_APPEND(COALESCE(tags, JSON_ARRAY()), \'$\', ?), updated_at=NOW() WHERE id IN (?) AND NOT JSON_CONTAINS(COALESCE(tags, JSON_ARRAY()), JSON_QUOTE(?))',
-        [tag, ids, tag]
+        `UPDATE contacts SET tags = JSON_ARRAY_APPEND(COALESCE(tags, JSON_ARRAY()), '$', ?), updated_at=NOW() WHERE id IN (${ids.map(() => '?').join(',')}) AND NOT JSON_CONTAINS(COALESCE(tags, JSON_ARRAY()), JSON_QUOTE(?))`,
+        [tag, ...ids, tag]
       );
       res.json({ ok: true });
     } catch (e) { res.status(500).json({ error: e.message }); }

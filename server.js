@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ override: true });
 const app  = require('./app');
 const { startScheduler } = require('./services/schedulerService');
 const { cleanupOrphanedImports } = require('./services/importService');

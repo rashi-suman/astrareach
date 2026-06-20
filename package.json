@@ -5,7 +5,10 @@
   "scripts": {
     "dev": "node server.js",
     "start": "node server.js",
-    "seed:admin": "node scripts/seedAdmin.js"
+    "seed:admin": "node scripts/seedAdmin.js",
+    "sequelize": "sequelize",
+    "db:migrate": "sequelize db:migrate",
+    "db:migrate:undo": "sequelize db:migrate:undo"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.24.0",
@@ -33,6 +36,8 @@
     "passport": "^0.7.0",
     "passport-local": "^1.0.0",
     "resend": "^3.2.0",
+    "sequelize": "^6.37.8",
+    "sequelize-cli": "^6.6.5",
     "uuid": "^9.0.0",
     "xlsx": "^0.18.5"
   }

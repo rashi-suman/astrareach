@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ override: true });
 const mysql = require('mysql2/promise');
 
 function parseDbUrl(url) {
@@ -33,8 +33,17 @@ const pool = mysql.createPool({
   multipleStatements: false,
 });
 
+
+function serializeParams(params) {
+  return params.map(p => {
+    if (p === null || p === undefined) return p;
+    if (typeof p === 'object') return JSON.stringify(p);
+    return p;
+  });
+}
+
 async function query(sql, params = []) {
-  const [result] = await pool.execute(sql, params);
+  const [result] = await pool.query(sql, serializeParams(params));
   if (Array.isArray(result)) {
     return { rows: result, rowCount: result.length };
   }
@@ -45,7 +54,7 @@ async function getClient() {
   const conn = await pool.getConnection();
   return {
     query: async (sql, params = []) => {
-      const [result] = await conn.execute(sql, params);
+      const [result] = await conn.query(sql, serializeParams(params));
       if (Array.isArray(result)) {
         return { rows: result, rowCount: result.length };
       }

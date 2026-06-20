@@ -520,8 +520,8 @@ async function optInsImportSegment(req, res) {
     if (ids.length) {
       await db.query(
         `UPDATE contacts SET whatsapp_opted_in = TRUE, whatsapp_opted_in_at = COALESCE(whatsapp_opted_in_at, NOW())
-         WHERE org_id = ? AND id IN (?)`,
-        [orgId(req), ids],
+         WHERE org_id = ? AND id IN (${ids.map(() => '?').join(',')})`,
+        [orgId(req), ...ids],
       );
     }
 

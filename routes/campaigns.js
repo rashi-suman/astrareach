@@ -55,7 +55,7 @@ router.post('/:id/generate-ab', requirePermission('campaigns.edit'), async (req,
     const orgId = req.org?.id || DEFAULT_ORG;
     // Get template_id from campaign
     const { rows } = await require('../config/db').query(
-      'SELECT template_id FROM campaigns WHERE id=$1', [req.params.id],
+      'SELECT template_id FROM campaigns WHERE id=?', [req.params.id],
     );
     if (!rows.length || !rows[0].template_id) {
       return res.status(400).json({ error: 'Campaign has no template' });

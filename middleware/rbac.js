@@ -119,7 +119,7 @@ async function requireAuth(req, res, next) {
               o.id AS org_db_id, o.name AS org_name, o.slug AS org_slug, o.settings AS org_settings
        FROM users u
        LEFT JOIN organisations o ON o.id = u.org_id
-       WHERE u.id = $1`,
+       WHERE u.id = ?`,
       [req.user.id],
     );
     if (!userRow.rows.length) {
@@ -162,7 +162,7 @@ function requirePermission(permission) {
     try {
       const grantRows = await db.query(
         `SELECT resource, granted FROM permission_grants
-         WHERE user_id = $1 AND (expires_at IS NULL OR expires_at > NOW())`,
+         WHERE user_id = ? AND (expires_at IS NULL OR expires_at > NOW())`,
         [userId],
       );
       grants = grantRows.rows;
@@ -202,7 +202,7 @@ function applyFieldFilter(tableName) {
     try {
       const rows = await db.query(
         `SELECT field_name FROM field_permissions
-         WHERE org_id=$1 AND role=$2 AND table_name=$3 AND can_view=TRUE`,
+         WHERE org_id=? AND role=? AND table_name=? AND can_view=TRUE`,
         [orgId, role, tableName],
       );
       let fields = rows.rows.map(r => r.field_name);
@@ -231,7 +231,7 @@ async function applyRowScope(userId, orgId, baseParamIdx) {
   try {
     const scopeRows = await db.query(
       `SELECT scope_type, segment_id, filter_json
-       FROM user_data_scopes WHERE user_id=$1 ORDER BY created_at DESC LIMIT 1`,
+       FROM user_data_scopes WHERE user_id=? ORDER BY created_at DESC LIMIT 1`,
       [userId],
     );
     const scope = scopeRows.rows[0];
@@ -239,13 +239,13 @@ async function applyRowScope(userId, orgId, baseParamIdx) {
 
     if (scope.scope_type === 'imported_by_me') {
       extraWhere = ` AND c.import_batch_id IN (
-        SELECT id FROM import_batches WHERE imported_by=$${idx})`;
+        SELECT id FROM import_batches WHERE imported_by=?)`;
       extraParams.push(userId);
       idx++;
     } else if (scope.scope_type === 'assigned') {
       // future: assigned_to column
     } else if (scope.scope_type === 'segment' && scope.segment_id) {
-      const segRow = await db.query('SELECT filters FROM segments WHERE id=$1', [scope.segment_id]);
+      const segRow = await db.query('SELECT filters FROM segments WHERE id=?', [scope.segment_id]);
       if (segRow.rows.length) {
         const { buildFilterWhere, offsetSqlParams } = require('../utils/segmentQueryBuilder');
         const { where, params } = buildFilterWhere(segRow.rows[0].filters);
@@ -309,7 +309,7 @@ async function flushAuditBuffer() {
         await db.query(
           `INSERT INTO audit_log
              (org_id,user_id,role,action,resource_type,resource_id,old_values,new_values,ip_address,user_agent,created_at)
-           VALUES($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
+           VALUES(?,?,?,?,?,?,?,?,?,?,?)`,
           [p.orgId, p.userId, p.role, p.action, p.resource_type,
            p.resource_id, p.old_values ? JSON.stringify(p.old_values) : null,
            p.new_values  ? JSON.stringify(p.new_values)  : null,
