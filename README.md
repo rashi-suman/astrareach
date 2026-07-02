@@ -369,3 +369,18 @@ email_events row inserted + email_tracking upserted
 ## License
 
 Private — AstraByte Solutions. All rights reserved.
+
+---
+
+## Roadmap
+
+- [x] Health & version endpoints
+- [x] Request-id + rate-limit middleware
+- [x] Logger / pagination / cache / validation utilities
+- [x] Helmet & CORS configuration
+- [x] Central error handler
+- [x] Jest test scaffold + GitHub Actions CI
+- [x] Dockerfile + docker-compose
+- [ ] Prometheus-format /metrics endpoint
+- [ ] OpenAPI spec
+- [ ] Multi-tenant rate limiting via Redis
